@@ -37,11 +37,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/host/signup","/api/host/login").permitAll() // Allow signup
+                        .requestMatchers("/api/host/signup", "/api/host/login",
+                                "/api/participant/join", "/api/quiz-sessions/*/status", "/api/quiz-sessions/*/current-question").permitAll() // Allow signup
                         .anyRequest().authenticated() // Secure all other endpoints
                 );
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
     

@@ -1,9 +1,11 @@
 package com.example.QuizRush.entities;
 
+import com.example.QuizRush.entities.enums.QuizStatus;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -29,6 +31,11 @@ public class Quiz {
 
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
+    private List<Participant> participants;
+
+
+    @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<Question> questions;
 
     @PrePersist
@@ -42,21 +49,75 @@ public class Quiz {
         updatedAt = LocalDateTime.now();
     }
 
+    @Enumerated(EnumType.STRING)
+    private QuizStatus status = QuizStatus.WAITING;
+
+    private Integer currentQuestionIndex = 0;
+
+    public void addParticipant(Participant participant) {
+        if (participants == null) {
+            participants = new ArrayList<>();
+        }
+        participants.add(participant);
+        participant.setQuiz(this);
+    }
+
+    public void removeParticipant(Participant participant) {
+        if (participants != null) {
+            participants.remove(participant);
+            participant.setQuiz(null);
+        }
+    }
+    public boolean isQuizFull() {
+        return participants != null && participants.size() >= maxParticipants;
+    }
+
+    public boolean canStart() {
+        return status == QuizStatus.WAITING &&
+                participants != null &&
+                !participants.isEmpty() &&
+                questions != null &&
+                !questions.isEmpty();
+    }
+    public Question getCurrentQuestion() {
+        if (questions == null || questions.isEmpty() ||
+                currentQuestionIndex < 0 || currentQuestionIndex >= questions.size()) {
+            return null;
+        }
+        return questions.get(currentQuestionIndex);
+    }
+    public boolean advanceToNextQuestion() {
+        if (questions == null || currentQuestionIndex >= questions.size() - 1) {
+            return false;
+        }
+        currentQuestionIndex++;
+        return true;
+    }
+
     public Quiz() {
     }
 
-    public Quiz(Long id, String title, String description, String roomCode, int maxParticipants, LocalDateTime createdAt, LocalDateTime updatedAt, String subject, String grade, User host, List<Question> questions) {
+    public Quiz(Long id, String title, String description, String roomCode, int maxParticipants, String subject, String grade, LocalDateTime createdAt, LocalDateTime updatedAt, User host, List<Participant> participants, List<Question> questions) {
         this.id = id;
         this.title = title;
         this.description = description;
         this.roomCode = roomCode;
         this.maxParticipants = maxParticipants;
-        this.createdAt = createdAt;
-        this.updatedAt = updatedAt;
         this.subject = subject;
         this.grade = grade;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
         this.host = host;
+        this.participants = participants;
         this.questions = questions;
+    }
+
+    public List<Participant> getParticipants() {
+        return participants;
+    }
+
+    public void setParticipants(List<Participant> participants) {
+        this.participants = participants;
     }
 
     public Long getId() {
@@ -145,5 +206,19 @@ public class Quiz {
 
     public void setQuestions(List<Question> questions) {
         this.questions = questions;
+    }
+    public QuizStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(QuizStatus status) {
+        this.status = status;
+    }
+    public Integer getCurrentQuestionIndex() {
+        return currentQuestionIndex;
+    }
+
+    public void setCurrentQuestionIndex(Integer currentQuestionIndex) {
+        this.currentQuestionIndex = currentQuestionIndex;
     }
 }
