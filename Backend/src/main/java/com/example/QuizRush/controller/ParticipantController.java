@@ -21,13 +21,15 @@ public class ParticipantController {
     @PostMapping("/join")
     public ResponseEntity<LoginResponse> joinQuiz(@RequestBody ParticipantLoginRequest request) {
         try {
-            System.out.println("in PC try");
             String token = participantService.joinQuiz(request);
-            System.out.println("in PC try");
             return ResponseEntity.ok(new LoginResponse(token));
         } catch (Exception e) {
-            System.out.println("in PC catch");
             return ResponseEntity.badRequest().body(new LoginResponse("Login failed: " + e.getMessage()));
         }
     }
 }
+//http://localhost:8080/api/participant/join
+/*{
+        "nickname" : "virat",
+        "quizRoomCode" : "456334"
+        }*/

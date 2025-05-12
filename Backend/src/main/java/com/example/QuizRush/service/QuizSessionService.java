@@ -71,7 +71,12 @@ public class QuizSessionService {
             throw new CustomException("No more questions, quiz has ended");
         }
         quizRepository.save(quiz);
-        return quiz.getCurrentQuestion();
+        Question currentQuestion = quiz.getCurrentQuestion();
+        if (currentQuestion == null) {
+            throw new CustomException("No current question available");
+        }
+        else
+            return quiz.getCurrentQuestion();
     }
 
 

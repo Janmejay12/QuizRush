@@ -72,6 +72,7 @@ public class Quiz {
         return participants != null && participants.size() >= maxParticipants;
     }
 
+
     public boolean canStart() {
         return status == QuizStatus.WAITING &&
                 participants != null &&

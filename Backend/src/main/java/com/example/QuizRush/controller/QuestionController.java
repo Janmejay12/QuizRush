@@ -3,19 +3,23 @@ package com.example.QuizRush.controller;
 import com.example.QuizRush.entities.Question;
 import com.example.QuizRush.exception.CustomException;
 import com.example.QuizRush.service.QuestionService;
+import com.example.QuizRush.repository.QuestionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/questions")
+    @RequestMapping("/api/questions")
 public class QuestionController {
     private final QuestionService questionService;
+    private final QuestionRepository questionRepository;
 
-    public QuestionController(QuestionService questionService) {
+    public QuestionController(QuestionService questionService, QuestionRepository questionRepository) {
         this.questionService = questionService;
+        this.questionRepository = questionRepository;
     }
 
     @PostMapping("/quiz/{quizId}")
