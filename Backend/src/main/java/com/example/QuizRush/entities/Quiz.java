@@ -88,9 +88,16 @@ public class Quiz {
         return questions.get(currentQuestionIndex);
     }
     public boolean advanceToNextQuestion() {
-        if (questions == null || currentQuestionIndex >= questions.size() - 1) {
+        if (questions == null || questions.isEmpty()) {
             return false;
         }
+        
+        // If we're at or beyond the last question, can't advance
+        if (currentQuestionIndex >= questions.size() - 1) {
+            return false;
+        }
+        
+        // Always increment for next question
         currentQuestionIndex++;
         return true;
     }

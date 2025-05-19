@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Quiz WebSocket Test v2</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+      .connected {
+        color: green;
+      }
+      .disconnected {
+        color: red;
+      }
+      .reconnecting {
+        color: orange;
+      }
+      #messages {
+        height: 400px;
+        overflow-y: scroll;
+        border: 1px solid #ccc;
+        padding: 10px;
+        font-family: monospace;
+      }
+      .status {
+        font-weight: bold;
+        margin: 10px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <h2>Quiz WebSocket Test v2</h2>
+      <div>
+        <label for="roomCode">Room Code:</label>
+        <input type="text" id="roomCode" value="453152" />
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <div id="connectionStatus" class="status disconnected">
+          Disconnected
+        </div>
+      </div>
+      <div>
+        <h3>Messages:</h3>
+        <pre id="messages"></pre>
+      </div>
+    </div>
+
+    <script>
+      let stompClient = null;
+      let reconnectTimeout = null;
+      let heartbeatInterval = null;
+      let connectionMonitorInterval = null;
+      let lastMessageTime = null;
+      let reconnectAttempts = 0;
+      let isIntentionalDisconnect = false;
+      const messagesDiv = document.getElementById("messages");
+      const statusDiv = document.getElementById("connectionStatus");
+      const MAX_RECONNECT_DELAY = 30000; // 30 seconds
+      const INITIAL_RECONNECT_DELAY = 1000; // 1 second
+      const HEARTBEAT_INTERVAL = 20000; // 20 seconds
+      const CONNECTION_MONITOR_INTERVAL = 5000; // 5 seconds
+      const MAX_MESSAGE_AGE = 45000; // 45 seconds
+
+      function updateStatus(status, className) {
+        statusDiv.textContent = status;
+        statusDiv.className = "status " + className;
+      }
+
+      function getReconnectDelay() {
+        const delay =
+          INITIAL_RECONNECT_DELAY * Math.pow(2, Math.min(reconnectAttempts, 4));
+        return Math.min(delay, MAX_RECONNECT_DELAY);
+      }
+
+      function startHeartbeat() {
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        heartbeatInterval = setInterval(() => {
+          if (stompClient && stompClient.connected) {
+            stompClient.send(
+              "/app/heartbeat",
+              {},
+              JSON.stringify({ timestamp: Date.now() })
+            );
+            lastMessageTime = Date.now();
+          }
+        }, HEARTBEAT_INTERVAL);
+      }
+
+      function startConnectionMonitor() {
+        if (connectionMonitorInterval) clearInterval(connectionMonitorInterval);
+        connectionMonitorInterval = setInterval(() => {
+          if (stompClient && stompClient.connected && lastMessageTime) {
+            const messageAge = Date.now() - lastMessageTime;
+            if (messageAge > MAX_MESSAGE_AGE) {
+              updateStatus("Connection lost, reconnecting...", "reconnecting");
+              reconnect();
+            }
+          }
+        }, CONNECTION_MONITOR_INTERVAL);
+      }
+
+      function connect() {
+        const roomCode = document.getElementById("roomCode").value;
+        if (!roomCode) {
+          alert("Please enter a room code");
+          return;
+        }
+
+        isIntentionalDisconnect = false;
+        updateStatus("Connecting...", "reconnecting");
+
+        if (stompClient !== null) {
+          disconnect();
+        }
+        const socket = new SockJS("http://localhost:8080/quiz-ws");
+        stompClient = Stomp.over(socket);
+
+        // Configure STOMP heartbeat explicitly to match server settings
+        stompClient.heartbeat.outgoing = 20000; // 20 seconds
+        stompClient.heartbeat.incoming = 20000; // 20 seconds
+
+        // Only show connection frame
+        stompClient.debug = function (str) {
+          if (str.includes("CONNECTED")) {
+            addMessage("Connection frame: " + str);
+          }
+        };
+
+        // Handle subscription receipts
+        stompClient.onreceipt = function (receipt) {
+          addMessage("Subscription receipt: " + JSON.stringify(receipt));
+        };
+
+        stompClient.connect(
+          {},
+          function (frame) {
+            reconnectAttempts = 0;
+            lastMessageTime = Date.now();
+            updateStatus("Connected", "connected"); // Subscribe to the quiz room topic
+            stompClient.subscribe(
+              "/topic/quiz/" + roomCode,
+              function (message) {
+                lastMessageTime = Date.now();
+                const body = JSON.parse(message.body);
+
+                // Handle different message types
+                let displayMessage = "";
+                switch (body.type) {
+                  case "LEADERBOARD_UPDATE":
+                    displayMessage =
+                      "Leaderboard Update:\n" +
+                      body.payload.entries
+                        .map(
+                          (e) =>
+                            `${e.rank}. ${e.nickname}: ${e.score} points (${e.totalTimeSpent}s)`
+                        )
+                        .join("\n");
+                    break;
+                  case "QUESTION_ENDED":
+                    displayMessage = "Question Ended";
+                    break;
+                  case "NEW_QUESTION":
+                    displayMessage = "New Question: " + body.payload.text;
+                    break;
+                  default:
+                    displayMessage = JSON.stringify(body, null, 2);
+                }
+                addMessage(displayMessage);
+              },
+              {
+                receipt: "subscription-" + roomCode,
+              }
+            );
+
+            startHeartbeat();
+            startConnectionMonitor();
+          },
+          function (error) {
+            updateStatus("Connection Error", "disconnected");
+            addMessage("Error: " + error);
+            if (!isIntentionalDisconnect) {
+              reconnect();
+            }
+          }
+        );
+
+        socket.onclose = function () {
+          updateStatus("Connection Closed", "disconnected");
+          addMessage("WebSocket connection closed");
+          if (!isIntentionalDisconnect) {
+            reconnect();
+          }
+        };
+      }
+
+      function reconnect() {
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+        }
+        if (!isIntentionalDisconnect) {
+          const delay = getReconnectDelay();
+          updateStatus(
+            `Reconnecting in ${delay / 1000}s (Attempt ${
+              reconnectAttempts + 1
+            })`,
+            "reconnecting"
+          );
+          addMessage(
+            `Attempting to reconnect in ${delay / 1000} seconds... (Attempt ${
+              reconnectAttempts + 1
+            })`
+          );
+          reconnectTimeout = setTimeout(() => {
+            reconnectTimeout = null;
+            reconnectAttempts++;
+            connect();
+          }, delay);
+        }
+      }
+
+      function disconnect() {
+        isIntentionalDisconnect = true;
+        updateStatus("Disconnected", "disconnected");
+
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+          reconnectTimeout = null;
+        }
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        if (connectionMonitorInterval) {
+          clearInterval(connectionMonitorInterval);
+          connectionMonitorInterval = null;
+        }
+        if (stompClient !== null) {
+          stompClient.disconnect();
+          stompClient = null;
+          addMessage("Disconnected");
+        }
+        reconnectAttempts = 0;
+      }
+
+      function addMessage(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        messagesDiv.innerHTML += `[${timestamp}] ${message}\n`;
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      // Handle page visibility changes
+      document.addEventListener("visibilitychange", function () {
+        if (
+          !document.hidden &&
+          stompClient === null &&
+          !isIntentionalDisconnect
+        ) {
+          addMessage("Page visible, reconnecting...");
+          connect();
+        }
+      });
+
+      // Handle page unload
+      window.onbeforeunload = function () {
+        if (stompClient !== null) {
+          disconnect();
+        }
+      };
+    </script>
+  </body>
+</html>

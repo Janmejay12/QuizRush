@@ -2,6 +2,7 @@ package com.example.QuizRush.service;
 
 import com.example.QuizRush.dto.AnswerResult;
 import com.example.QuizRush.dto.AnswerSubmission;
+import com.example.QuizRush.dto.leaderboard.LeaderboardDTO;
 import com.example.QuizRush.entities.Participant;
 import com.example.QuizRush.entities.Question;
 import com.example.QuizRush.entities.Quiz;
@@ -10,28 +11,35 @@ import com.example.QuizRush.exception.CustomException;
 import com.example.QuizRush.repository.ParticipantRepository;
 import com.example.QuizRush.repository.QuestionRepository;
 import com.example.QuizRush.repository.QuizRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+@Slf4j
 @Service
 public class AnswerService {
     private final ParticipantRepository participantRepository;
     private final QuestionRepository questionRepository;
     private final QuizRepository quizRepository;
+    private final QuizTimerService quizTimerService;
 
-    @Autowired
-    public AnswerService(ParticipantRepository participantRepository,
-                         QuestionRepository questionRepository,
-                         QuizRepository quizRepository) {
+    public AnswerService(
+            ParticipantRepository participantRepository,
+            QuestionRepository questionRepository,
+            QuizRepository quizRepository,
+            QuizTimerService quizTimerService) {
         this.participantRepository = participantRepository;
         this.questionRepository = questionRepository;
         this.quizRepository = quizRepository;
+        this.quizTimerService = quizTimerService;
     }
-    public AnswerResult processAnswer(Long quizId, AnswerSubmission answerSubmission, Authentication authentication){
 
-
+    @Transactional
+    public AnswerResult processAnswer(Long quizId, AnswerSubmission answerSubmission, Authentication authentication) {
         // 1. Extract participant information from the authentication token
         String participantNickname = authentication.getName();
 
@@ -52,32 +60,42 @@ public class AnswerService {
                 .orElseThrow(() -> new CustomException("Quiz not found"));
 
 
-        if(!quiz.getStatus().equals(QuizStatus.STARTED))
+        if (!quiz.getStatus().equals(QuizStatus.STARTED))
             throw new CustomException("Quiz is not started yet");
 
         Question question = questionRepository.findById(answerSubmission.getQuestionId()).
                 orElseThrow(() -> new CustomException("Question not found"));
 
-        if(!quiz.getCurrentQuestion().getId().equals(answerSubmission.getQuestionId()))
+        if (!quiz.getCurrentQuestion().getId().equals(answerSubmission.getQuestionId()))
             throw new CustomException("This is not the current question");
+
+        // Calculate time spent on question using exact timing
+        String roomCode = quiz.getRoomCode();
+        int timeSpent = quizTimerService.calculateTimeSpentExact(roomCode);
+
+        // Record answer time
+        quizTimerService.recordAnswerTime(roomCode, authenticatedParticipantId, timeSpent);
 
         List<Integer> correctOptionIndices = question.getCorrectOptionIndices();
         List<Integer> submittedOptionIndices = answerSubmission.getSelectedOptionIndices();
+
         int correctlySelected = 0;
         int incorrectlySelected = 0;
         int totalCorrectOptions = correctOptionIndices.size();
 
-        for(Integer selectedIndex : submittedOptionIndices){
-            if(correctOptionIndices.contains(selectedIndex))
+        for (Integer selectedIndex : submittedOptionIndices) {
+            if (correctOptionIndices.contains(selectedIndex))
                 correctlySelected++;
             else
                 incorrectlySelected++;
         }
-        boolean isFullyCorrect = (correctlySelected == totalCorrectOptions) && (incorrectlySelected == 0);
 
-        //calculating points - zero points if any incorrect options were selected
+        boolean isFullyCorrect = (correctlySelected == totalCorrectOptions) && (incorrectlySelected == 0);
+        // Calculate points:
+        // - Award partial points for correct selections if no incorrect options selected
+        // - Zero points if any incorrect options selected
         int pointsAwarded = 0;
-        if(incorrectlySelected == 0){
+        if (incorrectlySelected == 0) {
             double fraction = (double) correctlySelected / totalCorrectOptions;
             pointsAwarded = (int) Math.round(question.getPoints() * fraction);
         }
@@ -86,24 +104,27 @@ public class AnswerService {
         int newScore = currentScore + pointsAwarded;
         participant.setScore(newScore);
         participantRepository.save(participant);
+        participantRepository.flush(); // Force the changes to be written to DB
+
         // Prepare response message
         String message;
         if (isFullyCorrect) {
             message = "Correct answer!";
         } else if (pointsAwarded > 0) {
             message = "Partially correct. You selected " + correctlySelected + " out of " +
-                    totalCorrectOptions + " correct options.";
+                    totalCorrectOptions + " correct options. +" + pointsAwarded + " points";
         } else {
-            message = "Incorrect answer.";
+            message = "Incorrect answer. No points awarded.";
         }
 
-        return new AnswerResult(
+        AnswerResult answerResult = new AnswerResult(
                 isFullyCorrect,
                 pointsAwarded,
-                newScore,
+                participant.getScore(), // Return total score
                 message,
                 correctOptionIndices
         );
 
+        return answerResult;
     }
 }
