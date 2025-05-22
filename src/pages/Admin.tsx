@@ -9,7 +9,7 @@ import { Search } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 
 interface Quiz {
-  id: number;
+  id: number | string;
   title: string;
   questionsCount: number;
   createdAt: string;
@@ -22,15 +22,14 @@ interface QuizCardProps {
 const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
   const navigate = useNavigate();
 
-  const handleEditQuiz = (id: number) => {
+  const handleEditQuiz = (id: number | string) => {
     // Navigate to edit quiz page
-    navigate(`/edit-quiz/${id}`);
+    navigate(`/admin/quiz/${id}/edit`);
   };
 
-  const handleStartQuiz = (id: number) => {
-    // In a real app, this would start a session and generate a room code
-    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    toast.success(`Quiz started! Room code: ${roomCode}`);
+  const handleViewQuiz = (id: number | string) => {
+    // Navigate to view quiz page
+    navigate(`/admin/quiz/${id}`);
   };
 
   return (
@@ -51,11 +50,11 @@ const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
           Edit
         </Button>
         <Button 
-          className="bg-quizrush-purple hover:bg-quizrush-light-purple"
+          className="bg-purple-800 hover:bg-purple-700"
           size="sm"
-          onClick={() => handleStartQuiz(quiz.id)}
+          onClick={() => handleViewQuiz(quiz.id)}
         >
-          Start
+          View
         </Button>
       </CardFooter>
     </Card>
@@ -77,18 +76,26 @@ const Admin: React.FC = () => {
     }
   }, [navigate]);
   
-  // Fetch quizzes (simulated)
+  // Fetch quizzes from localStorage
   useEffect(() => {
-    // Sample quiz data - in a real app, you'd fetch from backend
-    const sampleQuizzes: Quiz[] = [
-      { id: 1, title: "General Knowledge", questionsCount: 10, createdAt: "May 10, 2023" },
-      { id: 2, title: "Science Quiz", questionsCount: 15, createdAt: "June 5, 2023" },
-      { id: 3, title: "History Trivia", questionsCount: 12, createdAt: "July 12, 2023" },
-      { id: 4, title: "Math Challenge", questionsCount: 8, createdAt: "Aug 22, 2023" }
-    ];
-    
-    setQuizzes(sampleQuizzes);
-    setFilteredQuizzes(sampleQuizzes);
+    const storedQuizzes = localStorage.getItem('admin_quizzes');
+    if (storedQuizzes) {
+      const parsedQuizzes = JSON.parse(storedQuizzes);
+      setQuizzes(parsedQuizzes);
+      setFilteredQuizzes(parsedQuizzes);
+    } else {
+      // Sample quiz data for first-time users
+      const sampleQuizzes: Quiz[] = [
+        { id: 1, title: "General Knowledge", questionsCount: 10, createdAt: "May 10, 2023" },
+        { id: 2, title: "Science Quiz", questionsCount: 15, createdAt: "June 5, 2023" },
+        { id: 3, title: "History Trivia", questionsCount: 12, createdAt: "July 12, 2023" },
+        { id: 4, title: "Math Challenge", questionsCount: 8, createdAt: "Aug 22, 2023" }
+      ];
+      
+      setQuizzes(sampleQuizzes);
+      setFilteredQuizzes(sampleQuizzes);
+      localStorage.setItem('admin_quizzes', JSON.stringify(sampleQuizzes));
+    }
   }, []);
   
   // Handle search
@@ -114,11 +121,11 @@ const Admin: React.FC = () => {
       <div className="container pt-24 pb-12 px-4">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-quizrush-dark-blue">Quiz Dashboard</h1>
+            <h1 className="text-3xl font-bold text-purple-900">Quiz Dashboard</h1>
             <p className="text-gray-600 mt-2">Manage and create your quiz experiences</p>
           </div>
           <Button 
-            className="mt-4 md:mt-0 bg-quizrush-purple hover:bg-quizrush-light-purple"
+            className="mt-4 md:mt-0 bg-purple-800 hover:bg-purple-700"
             onClick={handleCreateQuiz}
           >
             Create New Quiz

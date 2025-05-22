@@ -11,6 +11,10 @@ import Login from "./pages/Login";
 import JoinQuiz from "./pages/JoinQuiz";
 import Admin from "./pages/Admin";
 import QuizRoom from "./pages/QuizRoom";
+import QuizCreate from "./pages/QuizCreate";
+import QuestionPage from "./pages/QuestionPage";
+import QuizEdit from "./pages/QuizEdit";
+import QuizView from "./pages/QuizView";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +31,10 @@ const App = () => (
           <Route path="/join-quiz" element={<JoinQuiz />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/quiz-room" element={<QuizRoom />} />
+          <Route path="/create-quiz" element={<QuizCreate />} />
+          <Route path="/admin/quiz/:quizId/question/:questionId" element={<QuestionPage />} />
+          <Route path="/admin/quiz/:quizId/edit" element={<QuizEdit />} />
+          <Route path="/admin/quiz/:quizId" element={<QuizView />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
