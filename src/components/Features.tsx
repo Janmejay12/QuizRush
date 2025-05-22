@@ -2,8 +2,16 @@
 import React, { useEffect, useRef } from 'react';
 import { Users, Clock, Search } from 'lucide-react';
 
-const FeatureCard = ({ icon: Icon, title, description, bgColor, delay = 0 }) => {
-  const cardRef = useRef(null);
+interface FeatureCardProps {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  bgColor: string;
+  delay?: number;
+}
+
+const FeatureCard: React.FC<FeatureCardProps> = ({ icon: Icon, title, description, bgColor, delay = 0 }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -11,7 +19,9 @@ const FeatureCard = ({ icon: Icon, title, description, bgColor, delay = 0 }) => 
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             setTimeout(() => {
-              entry.target.classList.add('active');
+              if (entry.target instanceof HTMLElement) {
+                entry.target.classList.add('active');
+              }
             }, delay);
             observer.unobserve(entry.target);
           }
@@ -45,7 +55,7 @@ const FeatureCard = ({ icon: Icon, title, description, bgColor, delay = 0 }) => 
   );
 };
 
-const Features = () => {
+const Features: React.FC = () => {
   return (
     <section id="features" className="py-20 bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">

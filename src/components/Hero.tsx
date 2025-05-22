@@ -5,9 +5,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { ArrowRight } from 'lucide-react';
 
-const Hero = () => {
-  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
-  const [quizCode, setQuizCode] = useState('');
+const Hero: React.FC = () => {
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState<boolean>(false);
+  const [quizCode, setQuizCode] = useState<string>('');
 
   return (
     <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 hero-pattern overflow-hidden">

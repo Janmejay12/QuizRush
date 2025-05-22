@@ -8,15 +8,26 @@ import { toast } from 'sonner';
 import { Search } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 
-const QuizCard = ({ quiz }) => {
+interface Quiz {
+  id: number;
+  title: string;
+  questionsCount: number;
+  createdAt: string;
+}
+
+interface QuizCardProps {
+  quiz: Quiz;
+}
+
+const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
   const navigate = useNavigate();
 
-  const handleEditQuiz = (id) => {
+  const handleEditQuiz = (id: number) => {
     // Navigate to edit quiz page
     navigate(`/edit-quiz/${id}`);
   };
 
-  const handleStartQuiz = (id) => {
+  const handleStartQuiz = (id: number) => {
     // In a real app, this would start a session and generate a room code
     const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
     toast.success(`Quiz started! Room code: ${roomCode}`);
@@ -51,10 +62,10 @@ const QuizCard = ({ quiz }) => {
   );
 };
 
-const Admin = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [quizzes, setQuizzes] = useState([]);
-  const [filteredQuizzes, setFilteredQuizzes] = useState([]);
+const Admin: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [filteredQuizzes, setFilteredQuizzes] = useState<Quiz[]>([]);
   const navigate = useNavigate();
   
   // Check if user is logged in
@@ -69,7 +80,7 @@ const Admin = () => {
   // Fetch quizzes (simulated)
   useEffect(() => {
     // Sample quiz data - in a real app, you'd fetch from backend
-    const sampleQuizzes = [
+    const sampleQuizzes: Quiz[] = [
       { id: 1, title: "General Knowledge", questionsCount: 10, createdAt: "May 10, 2023" },
       { id: 2, title: "Science Quiz", questionsCount: 15, createdAt: "June 5, 2023" },
       { id: 3, title: "History Trivia", questionsCount: 12, createdAt: "July 12, 2023" },

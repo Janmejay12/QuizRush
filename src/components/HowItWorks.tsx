@@ -1,8 +1,15 @@
 
 import React, { useEffect, useRef } from 'react';
 
-const StepCard = ({ number, title, description, delay = 0 }) => {
-  const stepRef = useRef(null);
+interface StepCardProps {
+  number: string;
+  title: string;
+  description: string;
+  delay?: number;
+}
+
+const StepCard: React.FC<StepCardProps> = ({ number, title, description, delay = 0 }) => {
+  const stepRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -10,7 +17,9 @@ const StepCard = ({ number, title, description, delay = 0 }) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             setTimeout(() => {
-              entry.target.classList.add('active');
+              if (entry.target instanceof HTMLElement) {
+                entry.target.classList.add('active');
+              }
             }, delay);
             observer.unobserve(entry.target);
           }
@@ -43,7 +52,7 @@ const StepCard = ({ number, title, description, delay = 0 }) => {
   );
 };
 
-const HowItWorks = () => {
+const HowItWorks: React.FC = () => {
   return (
     <section id="how-it-works" className="py-20">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">

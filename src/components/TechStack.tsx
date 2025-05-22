@@ -1,8 +1,14 @@
 
 import React, { useEffect, useRef } from 'react';
 
-const TechItem = ({ image, name, delay = 0 }) => {
-  const itemRef = useRef(null);
+interface TechItemProps {
+  image: string;
+  name: string;
+  delay?: number;
+}
+
+const TechItem: React.FC<TechItemProps> = ({ image, name, delay = 0 }) => {
+  const itemRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -10,7 +16,9 @@ const TechItem = ({ image, name, delay = 0 }) => {
         entries.forEach(entry => {
           if (entry.isIntersecting) {
             setTimeout(() => {
-              entry.target.classList.add('active');
+              if (entry.target instanceof HTMLElement) {
+                entry.target.classList.add('active');
+              }
             }, delay);
             observer.unobserve(entry.target);
           }
@@ -40,7 +48,7 @@ const TechItem = ({ image, name, delay = 0 }) => {
   );
 };
 
-const TechStack = () => {
+const TechStack: React.FC = () => {
   return (
     <section id="tech-stack" className="py-20 bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">

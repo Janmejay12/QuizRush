@@ -3,7 +3,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
-const AuthNavbar = () => {
+const AuthNavbar: React.FC = () => {
   return (
     <nav className="w-full py-4 px-4 sm:px-6 lg:px-8 border-b bg-white/80 backdrop-blur-md fixed top-0 left-0 z-50">
       <div className="max-w-7xl mx-auto flex items-center justify-between">

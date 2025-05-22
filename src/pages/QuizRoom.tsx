@@ -4,10 +4,15 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-const QuizRoom = () => {
+interface RoomData {
+  nickname: string;
+  roomCode: string;
+}
+
+const QuizRoom: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [roomData, setRoomData] = useState({
+  const [roomData, setRoomData] = useState<RoomData>({
     nickname: '',
     roomCode: ''
   });

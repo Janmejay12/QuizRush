@@ -6,11 +6,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import Navbar from '@/components/AuthNavbar';
 import { toast } from 'sonner';
 
-const JoinQuiz = () => {
-  const [nickname, setNickname] = useState('');
-  const [roomCode, setRoomCode] = useState('');
+interface Participant {
+  nickname: string;
+  roomCode: string;
+}
 
-  const handleJoinQuiz = (e) => {
+const JoinQuiz: React.FC = () => {
+  const [nickname, setNickname] = useState<string>('');
+  const [roomCode, setRoomCode] = useState<string>('');
+
+  const handleJoinQuiz = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!nickname || !roomCode) {
@@ -20,7 +25,8 @@ const JoinQuiz = () => {
     
     // In a real app, you would validate the room code with your backend
     // For now, we'll just open a new tab (simulating joining a quiz room)
-    localStorage.setItem('participant', JSON.stringify({ nickname, roomCode }));
+    const participant: Participant = { nickname, roomCode };
+    localStorage.setItem('participant', JSON.stringify(participant));
     
     toast.success('Joining quiz room...');
     
