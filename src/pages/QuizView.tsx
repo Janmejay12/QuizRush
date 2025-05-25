@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
@@ -43,18 +42,8 @@ const QuizView: React.FC = () => {
   }, [quizId, navigate, toast]);
 
   const handleStartQuiz = () => {
-    // Generate a random 6-character room code
-    const newRoomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-    setRoomCode(newRoomCode);
-    
-    // In a real app, we would create a session on the backend
-    toast({
-      title: "Quiz started!",
-      description: `Room code: ${newRoomCode}. Share this code with participants.`,
-    });
-    
-    // In a real app, we would navigate to a host view
-    // navigate(`/host/${quizId}/${newRoomCode}`);
+    // Navigate to host waiting room
+    navigate(`/host-waiting/${quizId}`);
   };
 
   const handleEditQuiz = () => {

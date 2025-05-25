@@ -15,6 +15,11 @@ import QuizCreate from "./pages/QuizCreate";
 import QuestionPage from "./pages/QuestionPage";
 import QuizEdit from "./pages/QuizEdit";
 import QuizView from "./pages/QuizView";
+import HostWaitingRoom from "./pages/HostWaitingRoom";
+import ParticipantWaitingRoom from "./pages/ParticipantWaitingRoom";
+import HostQuizView from "./pages/HostQuizView";
+import ParticipantQuestionView from "./pages/ParticipantQuestionView";
+import LeaderboardView from "./pages/LeaderboardView";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +40,14 @@ const App = () => (
           <Route path="/admin/quiz/:quizId/question/:questionId" element={<QuestionPage />} />
           <Route path="/admin/quiz/:quizId/edit" element={<QuizEdit />} />
           <Route path="/admin/quiz/:quizId" element={<QuizView />} />
+          
+          {/* New quiz game routes */}
+          <Route path="/host-waiting/:quizId" element={<HostWaitingRoom />} />
+          <Route path="/participant-waiting" element={<ParticipantWaitingRoom />} />
+          <Route path="/host-quiz/:quizId/:roomCode" element={<HostQuizView />} />
+          <Route path="/participant-quiz" element={<ParticipantQuestionView />} />
+          <Route path="/leaderboard/:quizId/:roomCode" element={<LeaderboardView />} />
+          
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
