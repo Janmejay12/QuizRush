@@ -13,6 +13,7 @@ interface LeaderboardEntry {
 const LeaderboardView: React.FC = () => {
   const { quizId, roomCode } = useParams();
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [isFinalStandings, setIsFinalStandings] = useState(false); // This would be determined by quiz state
 
   // Mock leaderboard data
   const leaderboardData: LeaderboardEntry[] = [
@@ -26,7 +27,12 @@ const LeaderboardView: React.FC = () => {
   useEffect(() => {
     // Show leaderboard with animation delay
     const timer = setTimeout(() => setShowLeaderboard(true), 500);
-    return () => clearTimeout(timer);
+    // Simulate final standings (this would come from quiz state)
+    const finalTimer = setTimeout(() => setIsFinalStandings(true), 3000);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(finalTimer);
+    };
   }, []);
 
   const getRankColor = (rank: number) => {
@@ -49,39 +55,55 @@ const LeaderboardView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 relative overflow-hidden">
-      {/* Animated background elements */}
+      {/* Enhanced animated background elements */}
       <div className="absolute inset-0">
         <div className="absolute top-20 left-20 w-32 h-32 bg-yellow-500/20 rounded-full animate-float"></div>
         <div className="absolute top-1/3 right-20 w-24 h-24 bg-green-500/20 rounded-full animate-pulse-soft"></div>
         <div className="absolute bottom-20 left-1/4 w-40 h-40 bg-blue-400/20 rounded-full animate-float"></div>
+        
+        {/* Additional celebration elements */}
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-3 h-3 bg-white/20 rounded-full animate-float"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 3}s`,
+              animationDuration: `${3 + Math.random() * 2}s`
+            }}
+          />
+        ))}
       </div>
 
       {/* Top bar */}
       <div className="relative z-10 flex justify-between items-center p-6">
         <div className="flex items-center space-x-4">
-          <div className="bg-yellow-500 px-3 py-1 rounded text-black font-bold text-sm">1st</div>
+          <div className="bg-yellow-500 px-3 py-1 rounded text-black font-bold text-sm animate-pulse">1st</div>
           <div className="bg-gray-600 px-3 py-1 rounded text-white text-sm">Bonus</div>
         </div>
         <div className="text-white text-lg">1</div>
         <div className="text-white text-lg">331 790</div>
         <div className="flex space-x-2">
-          <div className="w-8 h-8 bg-white/20 rounded-lg"></div>
-          <div className="w-8 h-8 bg-white/20 rounded-lg"></div>
-          <div className="w-8 h-8 bg-white/20 rounded-lg"></div>
-          <div className="w-8 h-8 bg-white/20 rounded-lg"></div>
+          <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse" style={{ animationDelay: '0s' }}></div>
+          <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+          <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+          <div className="w-8 h-8 bg-white/20 rounded-lg animate-pulse" style={{ animationDelay: '0.6s' }}></div>
         </div>
       </div>
 
       {/* Main content */}
       <div className="relative z-10 flex flex-col items-center justify-center px-6 py-12">
         <div className="text-white text-3xl font-bold mb-8 animate-fade-in">
-          Leaderboard
+          {isFinalStandings ? '🎉 Final Standings 🎉' : 'Leaderboard'}
         </div>
 
         {/* Question indicator */}
-        <div className="text-white text-lg mb-8 opacity-75">
-          Question 3/5 Results
-        </div>
+        {!isFinalStandings && (
+          <div className="text-white text-lg mb-8 opacity-75">
+            Question 3/5 Results
+          </div>
+        )}
 
         {/* Leaderboard */}
         <div className="bg-black/40 backdrop-blur-md rounded-2xl p-8 max-w-4xl w-full">
@@ -91,13 +113,13 @@ const LeaderboardView: React.FC = () => {
                 key={entry.nickname}
                 className={`
                   ${getRankColor(entry.rank)} 
-                  rounded-xl p-6 text-white transform transition-all duration-500 ease-out
+                  rounded-xl p-6 text-white transform transition-all duration-500 ease-out relative overflow-hidden
                   ${showLeaderboard ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'}
                   hover:scale-105
                 `}
                 style={{ transitionDelay: `${index * 100}ms` }}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between relative z-10">
                   <div className="flex items-center space-x-4">
                     {/* Rank */}
                     <div className="text-2xl font-bold min-w-[3rem] text-center">
@@ -106,7 +128,7 @@ const LeaderboardView: React.FC = () => {
                     
                     {/* Avatar and nickname */}
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-black/30 rounded-full flex items-center justify-center text-xl">
+                      <div className="w-12 h-12 bg-black/30 rounded-full flex items-center justify-center text-xl animate-bounce">
                         {entry.avatar}
                       </div>
                       <div>
@@ -125,33 +147,64 @@ const LeaderboardView: React.FC = () => {
 
                 {/* Highlight for top 3 */}
                 {entry.rank <= 3 && (
-                  <div className="absolute -top-1 -left-1 -right-1 h-2 bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-300 rounded-t-xl opacity-75"></div>
+                  <div className="absolute -top-1 -left-1 -right-1 h-2 bg-gradient-to-r from-yellow-300 via-yellow-400 to-yellow-300 rounded-t-xl opacity-75 animate-pulse"></div>
                 )}
               </div>
             ))}
           </div>
 
-          {/* Next question countdown */}
+          {/* Next question countdown or final message */}
           <div className="mt-8 text-center">
-            <div className="text-white text-lg">Next question in...</div>
-            <div className="text-white text-4xl font-bold mt-2">3</div>
+            {isFinalStandings ? (
+              <div className="text-white text-xl animate-bounce">
+                🎊 Congratulations to all participants! 🎊
+              </div>
+            ) : (
+              <>
+                <div className="text-white text-lg">Next question in...</div>
+                <div className="text-white text-4xl font-bold mt-2 animate-pulse">3</div>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Confetti animation */}
+      {/* Enhanced confetti animation */}
       {showLeaderboard && (
         <div className="fixed inset-0 pointer-events-none">
-          {[...Array(20)].map((_, i) => (
+          {[...Array(isFinalStandings ? 50 : 30)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-2 h-2 bg-yellow-400 animate-confetti"
+              className="absolute animate-confetti"
               style={{
                 left: `${Math.random() * 100}%`,
+                width: `${4 + Math.random() * 8}px`,
+                height: `${4 + Math.random() * 8}px`,
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'][Math.floor(Math.random() * 7)],
                 animationDelay: `${Math.random() * 2}s`,
-                animationDuration: `${3 + Math.random() * 2}s`
+                animationDuration: `${3 + Math.random() * 2}s`,
+                borderRadius: Math.random() > 0.5 ? '50%' : '0%'
               }}
             />
+          ))}
+        </div>
+      )}
+
+      {/* Special final standings confetti */}
+      {isFinalStandings && (
+        <div className="fixed inset-0 pointer-events-none">
+          {[...Array(100)].map((_, i) => (
+            <div
+              key={`final-${i}`}
+              className="absolute text-2xl animate-confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${4 + Math.random() * 3}s`
+              }}
+            >
+              {['🎉', '🎊', '✨', '🌟', '💫', '🎈'][Math.floor(Math.random() * 6)]}
+            </div>
           ))}
         </div>
       )}

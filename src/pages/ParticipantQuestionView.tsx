@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import CircularTimer from '@/components/quiz/CircularTimer';
 
 interface Question {
@@ -11,11 +11,11 @@ interface Question {
 }
 
 const ParticipantQuestionView: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const nickname = searchParams.get('nickname') || 'Player';
+  const { quizId, participantId } = useParams<{ quizId: string; participantId: string }>();
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [timeLeft, setTimeLeft] = useState(30);
   const [showResult, setShowResult] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   // Mock question data
@@ -48,7 +48,15 @@ const ParticipantQuestionView: React.FC = () => {
     if (!showResult) {
       setSelectedOptions([optionId]);
       // Show result after selection
-      setTimeout(() => setShowResult(true), 500);
+      setTimeout(() => {
+        setShowResult(true);
+        // Check if answer is correct and show confetti
+        const selectedOption = currentQuestion.options.find(opt => opt.id === optionId);
+        if (selectedOption?.isCorrect) {
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 3000);
+        }
+      }, 500);
     }
   };
 
@@ -128,7 +136,7 @@ const ParticipantQuestionView: React.FC = () => {
                   <div className={`text-lg font-bold ${option.isCorrect ? 'text-green-100' : 'text-red-100'}`}>
                     {option.isCorrect ? '+750' : '0'}
                   </div>
-                  <div className="text-sm">{nickname}</div>
+                  <div className="text-sm">Player {participantId}</div>
                   {option.isCorrect && (
                     <div className="text-sm text-green-100 mt-1">✓ Correct</div>
                   )}
@@ -143,7 +151,7 @@ const ParticipantQuestionView: React.FC = () => {
           <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
             <span className="text-white text-sm">🎄</span>
           </div>
-          <div className="text-white text-lg">{nickname}</div>
+          <div className="text-white text-lg">Player {participantId}</div>
           <div className="flex space-x-2">
             <div className="w-8 h-8 bg-purple-500 rounded-full"></div>
             <div className="w-8 h-8 bg-orange-500 rounded-full"></div>
@@ -151,6 +159,25 @@ const ParticipantQuestionView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Confetti for correct answers */}
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-4 h-4 animate-confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'][Math.floor(Math.random() * 6)],
+                animationDelay: `${Math.random() * 2}s`,
+                animationDuration: `${3 + Math.random() * 2}s`,
+                borderRadius: Math.random() > 0.5 ? '50%' : '0%'
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

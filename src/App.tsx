@@ -41,12 +41,16 @@ const App = () => (
           <Route path="/admin/quiz/:quizId/edit" element={<QuizEdit />} />
           <Route path="/admin/quiz/:quizId" element={<QuizView />} />
           
-          {/* New quiz game routes */}
+          {/* Quiz game routes */}
           <Route path="/host-waiting/:quizId" element={<HostWaitingRoom />} />
-          <Route path="/participant-waiting" element={<ParticipantWaitingRoom />} />
+          <Route path="/participant-waiting/:quizId/:participantId" element={<ParticipantWaitingRoom />} />
           <Route path="/host-quiz/:quizId/:roomCode" element={<HostQuizView />} />
-          <Route path="/participant-quiz" element={<ParticipantQuestionView />} />
+          <Route path="/participant-quiz/:quizId/:participantId" element={<ParticipantQuestionView />} />
           <Route path="/leaderboard/:quizId/:roomCode" element={<LeaderboardView />} />
+          
+          {/* Quiz summary routes */}
+          <Route path="/participant-summary/:quizId/:participantId" element={<ParticipantQuizSummary />} />
+          <Route path="/host-summary/:quizId" element={<HostQuizSummary />} />
           
           <Route path="*" element={<NotFound />} />
         </Routes>
