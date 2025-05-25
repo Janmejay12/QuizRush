@@ -38,7 +38,8 @@ const QuestionPage: React.FC = () => {
           setCurrentQuestion(question);
         }
       }
-    } else {
+    } 
+    else {
       toast({
         title: "Quiz not found",
         description: "The quiz you're trying to edit doesn't exist.",
@@ -59,7 +60,7 @@ const QuestionPage: React.FC = () => {
       updatedQuestions = quizData.questions.map(q => 
         q.id === questionId ? question : q
       );
-    } else {
+    } else { 
       // Add new question
       updatedQuestions = [...quizData.questions, question];
     }

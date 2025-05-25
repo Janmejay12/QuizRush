@@ -64,9 +64,7 @@ const HowItWorks: React.FC = () => {
         </div>
         
         <div className="relative">
-          {/* Connecting Line */}
-          <div className="hidden md:block absolute top-24 left-0 w-full h-0.5 bg-quizrush-purple/30"></div>
-          
+         
           <div className="grid md:grid-cols-3 gap-16 relative">
             <StepCard 
               number="1" 

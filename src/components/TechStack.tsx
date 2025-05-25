@@ -86,7 +86,7 @@ const TechStack: React.FC = () => {
             delay={400} 
           />
           <TechItem 
-            image="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/tailwindcss/tailwindcss-plain.svg" 
+            image="https://github.com/devicons/devicon/blob/v2.16.0/icons/tailwindcss/tailwindcss-original.svg" 
             name="Tailwind CSS" 
             delay={500} 
           />

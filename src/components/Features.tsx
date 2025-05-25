@@ -7,7 +7,7 @@ interface FeatureCardProps {
   title: string;
   description: string;
   bgColor: string;
-  delay?: number;
+  delay?: number; 
 }
 
 const FeatureCard: React.FC<FeatureCardProps> = ({ icon: Icon, title, description, bgColor, delay = 0 }) => {
@@ -83,7 +83,7 @@ const Features: React.FC = () => {
           />
           <FeatureCard
             icon={Search}
-            title="Easy Hosting & Joining"
+            title="Easy Hosting and Joining"
             description="Create a quiz in minutes and share a simple code for others to join instantly."
             bgColor="hover:bg-green-50"
             delay={400}

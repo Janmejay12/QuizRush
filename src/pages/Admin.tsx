@@ -83,7 +83,9 @@ const Admin: React.FC = () => {
       const parsedQuizzes = JSON.parse(storedQuizzes);
       setQuizzes(parsedQuizzes);
       setFilteredQuizzes(parsedQuizzes);
-    } else {
+    }
+    
+    else {
       // Sample quiz data for first-time users
       const sampleQuizzes: Quiz[] = [
         { id: 1, title: "General Knowledge", questionsCount: 10, createdAt: "May 10, 2023" },
