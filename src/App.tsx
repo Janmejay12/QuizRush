@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +19,8 @@ import ParticipantWaitingRoom from "./pages/ParticipantWaitingRoom";
 import HostQuizView from "./pages/HostQuizView";
 import ParticipantQuestionView from "./pages/ParticipantQuestionView";
 import LeaderboardView from "./pages/LeaderboardView";
+import ParticipantQuizSummary from "./pages/ParticipantQuizSummary";
+import HostQuizSummary from "./pages/HostQuizSummary";
 
 const queryClient = new QueryClient();
 
