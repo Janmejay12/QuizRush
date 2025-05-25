@@ -30,19 +30,19 @@ const HostQuizSummary: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-6">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 py-8 px-6">
+      <div className="max-w-3xl mx-auto">
         <div className={`
-          bg-white rounded-2xl shadow-lg p-8 transform transition-all duration-700 ease-out
+          bg-white rounded-2xl shadow-lg p-6 transform transition-all duration-700 ease-out
           ${showSummary ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-8 opacity-0 scale-95'}
         `}>
           {/* Header */}
-          <div className="flex items-center justify-between mb-8 pb-6 border-b">
+          <div className="flex items-center justify-between mb-6 pb-4 border-b">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">{quizSummaryData.title}</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">{quizSummaryData.title}</h1>
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <CheckCircle className="w-4 h-4 text-green-500" />
                   <span className="text-green-600 font-medium">{quizSummaryData.status}</span>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -56,30 +56,30 @@ const HostQuizSummary: React.FC = () => {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 text-center transform hover:scale-105 transition-transform">
-              <Target className="w-8 h-8 text-blue-600 mx-auto mb-3" />
-              <div className="text-3xl font-bold text-blue-900 mb-1">{quizSummaryData.accuracy}%</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center transform hover:scale-105 transition-transform">
+              <Target className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-blue-900 mb-1">{quizSummaryData.accuracy}%</div>
               <div className="text-blue-700 text-sm font-medium">Average Accuracy</div>
             </div>
 
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 text-center transform hover:scale-105 transition-transform">
-              <Users className="w-8 h-8 text-green-600 mx-auto mb-3" />
-              <div className="text-3xl font-bold text-green-900 mb-1">{quizSummaryData.participants}</div>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center transform hover:scale-105 transition-transform">
+              <Users className="w-6 h-6 text-green-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-green-900 mb-1">{quizSummaryData.participants}</div>
               <div className="text-green-700 text-sm font-medium">Total Participants</div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 text-center transform hover:scale-105 transition-transform">
-              <Users className="w-8 h-8 text-purple-600 mx-auto mb-3" />
-              <div className="text-3xl font-bold text-purple-900 mb-1">{quizSummaryData.totalStudents}</div>
+            <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center transform hover:scale-105 transition-transform">
+              <Users className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+              <div className="text-2xl font-bold text-purple-900 mb-1">{quizSummaryData.totalStudents}</div>
               <div className="text-purple-700 text-sm font-medium">Total Students</div>
             </div>
           </div>
 
           {/* Additional Stats */}
-          <div className="bg-gray-50 rounded-xl p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quiz Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 rounded-xl p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Quiz Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="flex justify-between items-center py-2">
                 <span className="text-gray-600">Completion Rate:</span>
                 <span className="font-semibold text-gray-900">
@@ -102,10 +102,10 @@ const HostQuizSummary: React.FC = () => {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-center space-x-4">
+          <div className="flex justify-center">
             <Button
               onClick={handleBackToAdmin}
-              className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 text-lg font-semibold rounded-lg transform hover:scale-105 transition-all"
+              className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 text-lg font-semibold rounded-lg transform hover:scale-105 transition-all"
             >
               Back to Admin
             </Button>

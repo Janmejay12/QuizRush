@@ -16,6 +16,7 @@ const ParticipantQuestionView: React.FC = () => {
   const [timeLeft, setTimeLeft] = useState(30);
   const [showResult, setShowResult] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiPosition, setConfettiPosition] = useState({ x: 0, y: 0 });
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   // Mock question data
@@ -44,8 +45,14 @@ const ParticipantQuestionView: React.FC = () => {
     }
   }, [timeLeft, showResult]);
 
-  const handleOptionSelect = (optionId: string) => {
+  const handleOptionSelect = (optionId: string, event: React.MouseEvent) => {
     if (!showResult) {
+      const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+      setConfettiPosition({ 
+        x: rect.left + rect.width / 2, 
+        y: rect.top + rect.height / 2 
+      });
+      
       setSelectedOptions([optionId]);
       // Show result after selection
       setTimeout(() => {
@@ -119,7 +126,7 @@ const ParticipantQuestionView: React.FC = () => {
           {currentQuestion.options.map((option, index) => (
             <div
               key={option.id}
-              onClick={() => handleOptionSelect(option.id)}
+              onClick={(e) => handleOptionSelect(option.id, e)}
               className={`
                 relative p-8 rounded-xl text-white text-xl font-semibold text-center cursor-pointer
                 transition-all duration-300 ease-in-out
@@ -160,19 +167,29 @@ const ParticipantQuestionView: React.FC = () => {
         </div>
       </div>
 
-      {/* Confetti for correct answers */}
+      {/* Confetti for correct answers - positioned at the selected option */}
       {showConfetti && (
-        <div className="fixed inset-0 pointer-events-none">
-          {[...Array(50)].map((_, i) => (
+        <div 
+          className="fixed pointer-events-none z-50"
+          style={{
+            left: confettiPosition.x - 100,
+            top: confettiPosition.y - 100,
+            width: '200px',
+            height: '200px'
+          }}
+        >
+          {[...Array(30)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-4 h-4 animate-confetti"
+              className="absolute w-3 h-3"
               style={{
-                left: `${Math.random() * 100}%`,
+                left: `${50 + (Math.random() - 0.5) * 100}%`,
+                top: `${50 + (Math.random() - 0.5) * 100}%`,
                 backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'][Math.floor(Math.random() * 6)],
-                animationDelay: `${Math.random() * 2}s`,
-                animationDuration: `${3 + Math.random() * 2}s`,
-                borderRadius: Math.random() > 0.5 ? '50%' : '0%'
+                borderRadius: Math.random() > 0.5 ? '50%' : '0%',
+                animation: `confetti-burst 2s ease-out forwards`,
+                animationDelay: `${Math.random() * 0.5}s`,
+                transform: `rotate(${Math.random() * 360}deg)`
               }}
             />
           ))}

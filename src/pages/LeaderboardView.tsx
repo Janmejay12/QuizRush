@@ -169,42 +169,21 @@ const LeaderboardView: React.FC = () => {
         </div>
       </div>
 
-      {/* Enhanced confetti animation */}
+      {/* Original confetti animation */}
       {showLeaderboard && (
         <div className="fixed inset-0 pointer-events-none">
-          {[...Array(isFinalStandings ? 50 : 30)].map((_, i) => (
+          {[...Array(30)].map((_, i) => (
             <div
               key={i}
-              className="absolute animate-confetti"
+              className="absolute w-4 h-4 animate-confetti"
               style={{
                 left: `${Math.random() * 100}%`,
-                width: `${4 + Math.random() * 8}px`,
-                height: `${4 + Math.random() * 8}px`,
-                backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#ec4899'][Math.floor(Math.random() * 7)],
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'][Math.floor(Math.random() * 6)],
                 animationDelay: `${Math.random() * 2}s`,
                 animationDuration: `${3 + Math.random() * 2}s`,
                 borderRadius: Math.random() > 0.5 ? '50%' : '0%'
               }}
             />
-          ))}
-        </div>
-      )}
-
-      {/* Special final standings confetti */}
-      {isFinalStandings && (
-        <div className="fixed inset-0 pointer-events-none">
-          {[...Array(100)].map((_, i) => (
-            <div
-              key={`final-${i}`}
-              className="absolute text-2xl animate-confetti"
-              style={{
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 3}s`,
-                animationDuration: `${4 + Math.random() * 3}s`
-              }}
-            >
-              {['🎉', '🎊', '✨', '🌟', '💫', '🎈'][Math.floor(Math.random() * 6)]}
-            </div>
           ))}
         </div>
       )}

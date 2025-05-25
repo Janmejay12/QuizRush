@@ -76,29 +76,6 @@ const ParticipantWaitingRoom: React.FC = () => {
               </div>
             </div>
 
-            {/* Enhanced power-ups section */}
-            <div className="mb-8">
-              <div className="text-white text-lg mb-4 text-left">Your power-ups</div>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="bg-purple-600/50 rounded-lg p-4 text-center transform hover:scale-110 transition-all duration-300 hover:bg-purple-500/60">
-                  <div className="text-white text-sm mb-1 animate-pulse">2x</div>
-                  <div className="text-white text-xs">Bag twice the score for one question</div>
-                </div>
-                <div className="bg-orange-600/50 rounded-lg p-4 text-center transform hover:scale-110 transition-all duration-300 hover:bg-orange-500/60">
-                  <div className="text-white text-sm mb-1">🛡️</div>
-                  <div className="text-white text-xs">Protect your streak against a wrong answer</div>
-                </div>
-                <div className="bg-orange-500/50 rounded-lg p-4 text-center transform hover:scale-110 transition-all duration-300 hover:bg-orange-400/60">
-                  <div className="text-white text-sm mb-1">🚀</div>
-                  <div className="text-white text-xs">Apply to boost your streak counter by +4</div>
-                </div>
-                <div className="bg-gray-600/50 rounded-lg p-4 text-center transform hover:scale-110 transition-all duration-300 hover:bg-gray-500/60">
-                  <div className="text-white text-sm mb-1">🔀</div>
-                  <div className="text-white text-xs">3 shuffles remaining</div>
-                </div>
-              </div>
-            </div>
-
             {/* Waiting message with animation */}
             <div className="text-white text-xl mb-8 animate-pulse">
               <span className="inline-block animate-bounce">Waiting for the host to start...</span>
