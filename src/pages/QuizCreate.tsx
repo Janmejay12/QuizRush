@@ -1,37 +1,63 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import Navbar from '@/components/Navbar';
 import QuizDetailDialog from '@/components/quiz/QuizDetailDialog';
 import { QuizFormValues } from '@/components/quiz/QuizDetailDialog';
+import { useMutation } from '@tanstack/react-query';
+import { Quiz } from '@/lib/types';
+import { quizService } from '@/lib/quiz';
 
 const QuizCreate: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(true);
-  const navigate = useNavigate();
+  const navigate = useNavigate(); 
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
+  const createQuizMutation = useMutation({
+    mutationFn : (quiz : Quiz) => quizService.createQuiz(quiz),
+    onSuccess : (createdQuiz) => {
+      toast({
+        title : "Quiz Created",
+        description : `${createdQuiz.title} has been created. Add your first question now.`
+      })
+      navigate(`/admin/quiz/${createdQuiz.id}/question/new`)
+    },
+    onError : (error: any) => {
+      console.error('Error creating quiz:', error);
+      // Check if error is an AxiosError with response data
+      if (error?.response?.data) {
+        console.error('Server error details:', error.response.data);
+        toast({
+          title: "Error",
+          description: error.response.data.error || "Failed to create quiz. Please try again.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to create quiz. Please try again.",
+          variant: "destructive"
+        });
+      }
+      setIsLoading(false);
+    }
+  })
+  
   // Handle quiz creation form submission
   const handleCreateQuiz = (formData: QuizFormValues) => {
-    // In a real app, we would submit this to an API
-    // For now, let's create a temporary quiz ID
-    const quizId = crypto.randomUUID();
-    
-    // Store quiz details in localStorage so we can access them in the question editor
-    localStorage.setItem(`quiz_${quizId}`, JSON.stringify({
-      ...formData,
-      id: quizId,
-      createdAt: new Date().toISOString(),
-      questions: []
-    }));
-    
-    toast({
-      title: "Quiz created",
-      description: `'${formData.title}' has been created. Add your first question now.`,
-    });
-    
-    // Navigate to question editor
-    navigate(`/admin/quiz/${quizId}/question/new`);
+    setIsLoading(true);
+
+    const newQuiz: Quiz = {
+      title: formData.title,
+      description: formData.description,
+      maxParticipants: formData.maxParticipants,
+      subject: formData.subject,
+      grade: formData.grade,
+      status: 'CREATED',
+      currentQuestionIndex: 0
+    }
+    createQuizMutation.mutate(newQuiz);
   };
 
   // If user closes dialog, go back to admin page
@@ -51,6 +77,7 @@ const QuizCreate: React.FC = () => {
           open={dialogOpen}
           onOpenChange={handleOpenChange}
           onSubmit={handleCreateQuiz}
+          isLoading={isLoading}
         />
       </div>
     </div>

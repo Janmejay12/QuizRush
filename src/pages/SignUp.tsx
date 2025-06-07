@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -6,14 +5,16 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Navbar from '@/components/AuthNavbar';
 import { toast } from 'sonner';
+import { authService, SignUpRequest } from '@/lib/auth';
 
 const SignUp: React.FC = () => {
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const navigate = useNavigate();
 
-  const handleSignUp = (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!username || !password || !confirmPassword) {
@@ -25,26 +26,35 @@ const SignUp: React.FC = () => {
       toast.error('Passwords do not match');
       return;
     }
+
+    setIsLoading(true);
+
+    try {
+      const signupRequest: SignUpRequest = { username, password };
+      await authService.signUp(signupRequest);
+      
+      // Add a small delay to ensure the user is fully persisted
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // After successful signup, log the user in
+      const loginResponse = await authService.login({ username, password });
+      
+      // Store the token
+      localStorage.setItem('token', loginResponse.token);
+      
+      // Extract user ID from JWT
+      const payload = JSON.parse(atob(loginResponse.token.split('.')[1]));
+      console.log(payload)
+      localStorage.setItem('userId', payload.userId.toString());
     
-    // In a real app, you would send this data to your backend
-    // For now, we'll simulate account creation by storing in localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    // Check if username already exists
-    if (users.some((user: { username: string }) => user.username === username)) {
-      toast.error('Username already exists');
-      return;
+      toast.success('Account created successfully!');
+      navigate('/admin');
+    } catch (error) {
+      console.error('Signup error:', error);
+      toast.error('Failed to create account. Username may already exist.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Store new user
-    users.push({ username, password });
-    localStorage.setItem('users', JSON.stringify(users));
-    
-    // Set current user
-    localStorage.setItem('currentUser', username);
-    
-    toast.success('Account created successfully!');
-    navigate('/admin');
   };
 
   return (
@@ -67,6 +77,7 @@ const SignUp: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required 
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -78,6 +89,7 @@ const SignUp: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -89,11 +101,11 @@ const SignUp: React.FC = () => {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required 
+                  disabled={isLoading}
                 />
               </div>
-              <Button className="w-full bg-quizrush-purple hover:bg-quizrush-light-purple" type="submit">
-                Create Account
-              </Button>
+              <Button className="w-full bg-quizrush-purple hover:bg-quizrush-light-purple" type="submit" disabled={isLoading}>
+              {isLoading ? 'Creating Account...' : 'Create Account'}              </Button>
             </form>
           </CardContent>
           <CardFooter className="text-center">

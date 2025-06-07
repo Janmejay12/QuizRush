@@ -4,34 +4,48 @@ import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import { Check, Clock, Info } from 'lucide-react';
-import { Question } from '@/components/quiz/QuestionEditor';
-
-interface QuizData {
-  id: string;
-  title: string;
-  description: string;
-  subject: string;
-  grade: string;
-  maxParticipants: number;
-  createdAt: string;
-  questions: Question[];
-}
+import { Question, Quiz } from '@/lib/types';
+import { quizService } from '@/lib/quiz';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { quizSessionService } from '@/lib/quiz-session';
 
 const QuizView: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [quizData, setQuizData] = useState<QuizData | null>(null);
+  const queryClient = useQueryClient();
   const [roomCode, setRoomCode] = useState<string>('');
   
-  // Load quiz data from localStorage
-  useEffect(() => {
-    if (!quizId) return;
+  // Fetch quiz data
+  const { data: quizData, isLoading, error } = useQuery({
+    queryKey: ['quiz', quizId],
+    queryFn: () => quizService.getQuizById(Number(quizId)),
+    enabled: !!quizId,
+    staleTime: 60000 // 1 minute
+  });
 
-    const storedQuiz = localStorage.getItem(`quiz_${quizId}`);
-    if (storedQuiz) {
-      setQuizData(JSON.parse(storedQuiz));
-    } else {
+  const openQuizMutation = useMutation({
+    mutationFn: () => quizSessionService.openQuizForParticipants(Number(quizId)),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['quiz', quizId] });
+      toast({
+        title: "Quiz opened for joining",
+        description: "Participants can now join your quiz using the room code."
+      });
+      navigate(`/host-waiting/${quizId}`);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error opening quiz",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Handle error state
+  useEffect(() => {
+    if (error) {
       toast({
         title: "Quiz not found",
         description: "The quiz you're looking for doesn't exist.",
@@ -39,18 +53,17 @@ const QuizView: React.FC = () => {
       });
       navigate('/admin');
     }
-  }, [quizId, navigate, toast]);
+  }, [error, navigate, toast]);
 
-  const handleStartQuiz = () => {
-    // Navigate to host waiting room
-    navigate(`/host-waiting/${quizId}`);
+  const handleOpenQuiz = () => {
+    openQuizMutation.mutate();
   };
 
   const handleEditQuiz = () => {
     navigate(`/admin/quiz/${quizId}/edit`);
   };
 
-  if (!quizData) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
@@ -61,8 +74,19 @@ const QuizView: React.FC = () => {
     );
   }
 
+  if (!quizData) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="container pt-24 pb-12 px-4">
+          <p className="text-center">Quiz not found</p>
+        </div>
+      </div>
+    );
+  }
+
   const totalPoints = quizData.questions.reduce((sum, q) => sum + q.points, 0);
-  const totalTime = quizData.questions.reduce((sum, q) => sum + q.timeLimit, 0);
+  const totalTime = quizData.questions.reduce((sum, q) => sum + q.duration, 0);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -114,18 +138,16 @@ const QuizView: React.FC = () => {
             </div>
           </div>
           
-          {/* Room code display - only shown after starting quiz */}
+          {/* Room code card */}
           {roomCode && (
-            <div className="bg-white p-5 rounded-lg shadow-md">
+            <div className="bg-white p-5 rounded-lg shadow-md flex flex-col items-center justify-center">
               <h3 className="font-bold text-lg text-purple-800 mb-2">Room Code</h3>
-              <div className="mt-2 text-center">
-                <div className="text-3xl font-bold tracking-wider bg-purple-50 p-4 rounded-lg border-2 border-dashed border-purple-300">
-                  {roomCode}
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Share this code with participants to join the quiz
-                </p>
+              <div className="text-3xl font-bold text-center p-4 bg-purple-100 rounded-lg w-full">
+                {roomCode}
               </div>
+              <p className="text-sm text-gray-500 mt-2">
+                Share this code with participants to join the quiz
+              </p>
             </div>
           )}
           
@@ -136,11 +158,11 @@ const QuizView: React.FC = () => {
               Ready to begin? Click below to generate a room code and start the quiz.
             </p>
             <Button 
-              onClick={handleStartQuiz} 
+              onClick={handleOpenQuiz} 
               className="bg-purple-800 hover:bg-purple-900 px-8 py-6 text-lg w-full"
-              disabled={!!roomCode}
+              disabled={!!roomCode || openQuizMutation.isPending}
             >
-              {roomCode ? 'Quiz Started' : 'Start Quiz'}
+              {openQuizMutation.isPending ? 'Starting...' : roomCode ? 'Quiz Started' : 'Start Quiz'}
             </Button>
           </div>
         </div>
@@ -162,31 +184,37 @@ const QuizView: React.FC = () => {
                     <div className="flex items-center space-x-4 text-sm text-gray-500">
                       <div className="flex items-center">
                         <Check className="w-4 h-4 mr-1" />
-                        <span>{question.multipleCorrectAnswers ? 'Multiple answers' : 'Single answer'}</span>
+                        <span>{question.correctOptionIndices.length > 1 ? 'Multiple answers' : 'Single answer'}</span>
                       </div>
                       <div className="flex items-center">
                         <Clock className="w-4 h-4 mr-1" />
-                        <span>{question.timeLimit}s</span>
+                        <span>{question.duration}s</span>
                       </div>
                       <div>{question.points} {question.points === 1 ? 'point' : 'points'}</div>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-                    {question.options.map((option, optIndex) => (
-                      <div 
-                        key={option.id}
-                        className={`p-2 rounded-md flex items-center ${option.isCorrect ? 'bg-green-100 border border-green-300' : 'bg-gray-100'}`}
-                      >
-                        <div className={`w-4 h-4 rounded-full mr-2 ${option.isCorrect ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                        <span>{option.text}</span>
-                        {option.isCorrect && (
-                          <div className="ml-auto text-xs text-green-600 font-medium">
-                            Correct
+                    {question.options.map((optionText, optIndex) => {
+                      // Check if this option index is in the correctOptionIndices array
+                      const isCorrect = question.correctOptionIndices.includes(optIndex);
+                      return (
+                        <div 
+                          key={optIndex}
+                          className={`p-2 rounded-md flex items-center ${isCorrect ? 'bg-green-100 border border-green-300' : 'bg-gray-100'}`}
+                        >
+                          <div className={`w-6 h-6 rounded-full mr-2 flex items-center justify-center ${isCorrect ? 'bg-green-500 text-white' : 'bg-gray-300'}`}>
+                            {optIndex + 1}
                           </div>
-                        )}
-                      </div>
-                    ))}
+                          <span>{optionText}</span>
+                          {isCorrect && (
+                            <div className="ml-auto text-xs text-green-600 font-medium">
+                              Correct
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               ))}

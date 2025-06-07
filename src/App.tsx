@@ -9,7 +9,6 @@ import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
 import JoinQuiz from "./pages/JoinQuiz";
 import Admin from "./pages/Admin";
-import QuizRoom from "./pages/QuizRoom";
 import QuizCreate from "./pages/QuizCreate";
 import QuestionPage from "./pages/QuestionPage";
 import QuizEdit from "./pages/QuizEdit";
@@ -36,7 +35,6 @@ const App = () => (
           <Route path="/login" element={<Login />} />
           <Route path="/join-quiz" element={<JoinQuiz />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path="/quiz-room" element={<QuizRoom />} />
           <Route path="/create-quiz" element={<QuizCreate />} />
           <Route path="/admin/quiz/:quizId/question/:questionId" element={<QuestionPage />} />
           <Route path="/admin/quiz/:quizId/edit" element={<QuizEdit />} />
@@ -44,7 +42,7 @@ const App = () => (
           
           {/* Quiz game routes */}
           <Route path="/host-waiting/:quizId" element={<HostWaitingRoom />} />
-          <Route path="/participant-waiting/:quizId/:participantId" element={<ParticipantWaitingRoom />} />
+          <Route path="/participant-waiting/:quizId" element={<ParticipantWaitingRoom />} />
           <Route path="/host-quiz/:quizId/:roomCode" element={<HostQuizView />} />
           <Route path="/participant-quiz/:quizId/:participantId" element={<ParticipantQuestionView />} />
           <Route path="/leaderboard/:quizId/:roomCode" element={<LeaderboardView />} />

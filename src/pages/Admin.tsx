@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,13 +6,12 @@ import Navbar from '@/components/Navbar';
 import { toast } from 'sonner';
 import { Search } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { authService } from '@/lib/auth';
+import { quizService } from '@/lib/quiz';
+import { useQuery } from '@tanstack/react-query';
+import { Quiz } from '@/lib/types';
 
-interface Quiz {
-  id: number | string;
-  title: string;
-  questionsCount: number;
-  createdAt: string;
-}
+
 
 interface QuizCardProps {
   quiz: Quiz;
@@ -32,14 +30,31 @@ const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
     navigate(`/admin/quiz/${id}`);
   };
 
+  // Format date to "Date Month, Year Hours:Minutes AM/PM"
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return "N/A";
+    
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return "Invalid Date";
+    
+    return date.toLocaleString('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   return (
     <Card className="border shadow-md hover:shadow-lg transition-all">
       <CardHeader className="pb-2">
         <h3 className="text-lg font-bold">{quiz.title}</h3>
-        <p className="text-sm text-gray-500">{quiz.questionsCount} Questions</p>
+        <p className="text-sm text-gray-500">{quiz.questions?.length || 0} Questions</p>
       </CardHeader>
       <CardContent className="pb-2">
-        <p className="text-sm text-gray-700">Created on {quiz.createdAt}</p>
+        <p className="text-sm text-gray-700">Created on {formatDate(quiz.createdAt)}</p>
       </CardContent>
       <CardFooter className="flex justify-between pt-2">
         <Button 
@@ -63,55 +78,38 @@ const QuizCard: React.FC<QuizCardProps> = ({ quiz }) => {
 
 const Admin: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [filteredQuizzes, setFilteredQuizzes] = useState<Quiz[]>([]);
   const navigate = useNavigate();
   
   // Check if user is logged in
   useEffect(() => {
-    const currentUser = localStorage.getItem('currentUser');
-    if (!currentUser) {
-      toast.error('Please log in to access this page');
-      navigate('/login');
-    }
+   if(!authService.isAuthenticated()){
+    toast.error('Please log in to access this page');
+    navigate('/')
+   }
   }, [navigate]);
   
-  // Fetch quizzes from localStorage
-  useEffect(() => {
-    const storedQuizzes = localStorage.getItem('admin_quizzes');
-    if (storedQuizzes) {
-      const parsedQuizzes = JSON.parse(storedQuizzes);
-      setQuizzes(parsedQuizzes);
-      setFilteredQuizzes(parsedQuizzes);
-    }
-    
-    else {
-      // Sample quiz data for first-time users
-      const sampleQuizzes: Quiz[] = [
-        { id: 1, title: "General Knowledge", questionsCount: 10, createdAt: "May 10, 2023" },
-        { id: 2, title: "Science Quiz", questionsCount: 15, createdAt: "June 5, 2023" },
-        { id: 3, title: "History Trivia", questionsCount: 12, createdAt: "July 12, 2023" },
-        { id: 4, title: "Math Challenge", questionsCount: 8, createdAt: "Aug 22, 2023" }
-      ];
-      
-      setQuizzes(sampleQuizzes);
-      setFilteredQuizzes(sampleQuizzes);
-      localStorage.setItem('admin_quizzes', JSON.stringify(sampleQuizzes));
-    }
-  }, []);
+  // Fetch quizzes from reactQuery
+   const { data : quizzes, isLoading, isError, refetch} = useQuery({
+    queryKey : ['quizzes'],
+    queryFn : quizService.getAllQuizzes,
+    enabled : authService.isAuthenticated(),
+   })
   
   // Handle search
   useEffect(() => {
+    if(!quizzes) return;
+    
     if (searchQuery.trim() === '') {
       setFilteredQuizzes(quizzes);
       return;
     }
-    
     const filtered = quizzes.filter(quiz => 
       quiz.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredQuizzes(filtered);
   }, [searchQuery, quizzes]);
+
   
   const handleCreateQuiz = () => {
     navigate('/create-quiz');
@@ -143,7 +141,20 @@ const Admin: React.FC = () => {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        
+        {isLoading ? (
+          <div className="text-center py-8">Loading quizzes...</div>
+        ) : isError ? (
+          <div className="text-center py-8 text-red-500">
+            Error loading quizzes. 
+            <Button 
+              variant="link" 
+              onClick={() => refetch()} 
+              className="text-purple-700"
+            >
+              Try again
+            </Button>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredQuizzes.length > 0 ? (
             filteredQuizzes.map(quiz => (
@@ -155,6 +166,7 @@ const Admin: React.FC = () => {
             </p>
           )}
         </div>
+        )}
       </div>
     </div>
   );

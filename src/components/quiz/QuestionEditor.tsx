@@ -8,41 +8,22 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Check, Plus, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-
-export interface QuestionOption {
-  id: string;
-  text: string;
-  isCorrect: boolean;
-}
-
-export interface Question {
-  id: string;
-  text: string;
-  options: QuestionOption[];
-  points: number;
-  timeLimit: number;
-  multipleCorrectAnswers: boolean;
-}
+import { Question } from '@/lib/types';
 
 interface QuestionEditorProps {
   onSave: (question: Question) => void;
   defaultQuestion?: Question;
+  isLoading?: boolean;
 }
 
-const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion }) => {
+const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion, isLoading = false }) => {
   const [question, setQuestion] = useState<Question>(
     defaultQuestion || {
-      id: crypto.randomUUID(),
       text: '',
-      options: [
-        { id: crypto.randomUUID(), text: '', isCorrect: false },
-        { id: crypto.randomUUID(), text: '', isCorrect: false },
-        { id: crypto.randomUUID(), text: '', isCorrect: false },
-        { id: crypto.randomUUID(), text: '', isCorrect: false },
-      ],
+      options: ['', '', '', ''],
+      correctOptionIndices: [],
       points: 1,
-      timeLimit: 30,
-      multipleCorrectAnswers: false,
+      duration: 30,
     }
   );
 
@@ -52,31 +33,35 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
     setQuestion({ ...question, text: e.target.value });
   };
 
-  const handleOptionTextChange = (id: string, text: string) => {
+  const handleOptionTextChange = (index: number, text: string) => {
+    const updatedOptions = [...question.options];
+    updatedOptions[index] = text;
+    
     setQuestion({
       ...question,
-      options: question.options.map(option => 
-        option.id === id ? { ...option, text } : option
-      )
+      options: updatedOptions
     });
   };
 
-  const handleOptionCorrectChange = (id: string, isCorrect: boolean) => {
-    if (!question.multipleCorrectAnswers) {
+  const handleOptionCorrectChange = (index: number, isCorrect: boolean) => {
+    const isMultipleCorrect = question.correctOptionIndices.length > 1 || 
+      (question.correctOptionIndices.length === 1 && !question.correctOptionIndices.includes(index) && isCorrect);
+    
+    if (!isMultipleCorrect) {
       // Single answer mode - only one option can be correct
       setQuestion({
         ...question,
-        options: question.options.map(option => 
-          option.id === id ? { ...option, isCorrect } : { ...option, isCorrect: false }
-        )
+        correctOptionIndices: isCorrect ? [index] : []
       });
     } else {
       // Multiple answers mode - multiple options can be correct
+      const updatedIndices = isCorrect 
+        ? [...question.correctOptionIndices, index] 
+        : question.correctOptionIndices.filter(i => i !== index);
+      
       setQuestion({
         ...question,
-        options: question.options.map(option => 
-          option.id === id ? { ...option, isCorrect } : option
-        )
+        correctOptionIndices: updatedIndices
       });
     }
   };
@@ -87,43 +72,37 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
         ...question,
         options: [
           ...question.options,
-          { id: crypto.randomUUID(), text: '', isCorrect: false }
+          ''
         ]
       });
     }
   };
 
-  const handleRemoveOption = (id: string) => {
+  const handleRemoveOption = (index: number) => {
     if (question.options.length > 2) {
+      const updatedOptions = question.options.filter((_, i) => i !== index);
+      
+      // Update correctOptionIndices to account for removed option
+      const updatedIndices = question.correctOptionIndices
+        .filter(i => i !== index)
+        .map(i => i > index ? i - 1 : i);
+      
       setQuestion({
         ...question,
-        options: question.options.filter(option => option.id !== id)
+        options: updatedOptions,
+        correctOptionIndices: updatedIndices
       });
     }
   };
 
-  const handleAnswerTypeChange = (multipleCorrectAnswers: boolean) => {
+  const handleAnswerTypeChange = (multipleCorrect: boolean) => {
     // When switching to single answer mode, ensure only one option is selected
-    if (!multipleCorrectAnswers) {
-      const correctOptions = question.options.filter(o => o.isCorrect);
-      if (correctOptions.length > 1) {
-        // Reset all to false, or keep just the first correct one
-        setQuestion({
-          ...question,
-          multipleCorrectAnswers,
-          options: question.options.map((option, index) => ({
-            ...option,
-            isCorrect: index === question.options.findIndex(o => o.isCorrect)
-          }))
-        });
-        return;
-      }
+    if (!multipleCorrect && question.correctOptionIndices.length > 1) {
+      setQuestion({
+        ...question,
+        correctOptionIndices: question.correctOptionIndices.length > 0 ? [question.correctOptionIndices[0]] : []
+      });
     }
-    
-    setQuestion({
-      ...question,
-      multipleCorrectAnswers
-    });
   };
 
   const handlePointsChange = (points: string) => {
@@ -133,10 +112,10 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
     });
   };
 
-  const handleTimeLimitChange = (timeLimit: string) => {
+  const handleDurationChange = (duration: string) => {
     setQuestion({
       ...question,
-      timeLimit: parseInt(timeLimit, 10)
+      duration: parseInt(duration, 10)
     });
   };
 
@@ -148,19 +127,21 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
     }
     
     // Check if at least one option is marked correct
-    if (!question.options.some(o => o.isCorrect)) {
+    if (question.correctOptionIndices.length === 0) {
       alert("Please mark at least one option as correct");
       return;
     }
     
     // Check if all options have text
-    if (question.options.some(o => !o.text.trim())) {
+    if (question.options.some(text => !text.trim())) {
       alert("Please fill in text for all options");
       return;
     }
     
     onSave(question);
   };
+
+  const isMultipleCorrect = question.correctOptionIndices.length > 1;
 
   return (
     <div className="container max-w-4xl mx-auto p-4">
@@ -186,10 +167,10 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
               </Select>
             </div>
             <div>
-              <label htmlFor="timeLimit" className="block text-xs text-white mb-1">Time Limit</label>
+              <label htmlFor="duration" className="block text-xs text-white mb-1">Time Limit</label>
               <Select
-                value={question.timeLimit.toString()}
-                onValueChange={handleTimeLimitChange}
+                value={question.duration.toString()}
+                onValueChange={handleDurationChange}
               >
                 <SelectTrigger className="w-32 h-8 text-sm bg-white">
                   <SelectValue placeholder="Time limit" />
@@ -214,54 +195,58 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        {question.options.map((option, index) => (
-          <Card 
-            key={option.id} 
-            className={`relative h-40 flex flex-col items-center justify-center text-white text-center ${optionColors[index % optionColors.length]}`}
-          >
-            <button 
-              className="absolute top-2 left-2 bg-white/20 rounded-full p-1 hover:bg-white/40"
-              onClick={() => handleRemoveOption(option.id)}
-              type="button"
-              aria-label="Delete option"
+        {question.options.map((optionText, index) => {
+          const isCorrect = question.correctOptionIndices.includes(index);
+          return (
+            <Card 
+              key={index} 
+              className={`relative h-40 flex flex-col items-center justify-center text-white text-center ${optionColors[index % optionColors.length]}`}
             >
-              <Trash2 className="h-4 w-4 text-white" />
-            </button>
-            {!question.multipleCorrectAnswers ? (
-              <div className="absolute top-2 right-2">
-                <RadioGroup 
-                  value={option.isCorrect ? option.id : ""} 
-                  onValueChange={(value) => handleOptionCorrectChange(option.id, value === option.id)}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem 
-                      value={option.id} 
-                      id={`radio-${option.id}`} 
-                      className="border-white text-white"
-                    />
-                  </div>
-                </RadioGroup>
-              </div>
-            ) : (
-              <div className="absolute top-2 right-2">
-                <Checkbox
-                  id={`checkbox-${option.id}`}
-                  checked={option.isCorrect}
-                  onCheckedChange={(checked) => {
-                    handleOptionCorrectChange(option.id, !!checked);
-                  }}
-                  className="border-white data-[state=checked]:bg-white data-[state=checked]:text-purple-800"
-                />
-              </div>
-            )}
-            <Input
-              className="bg-transparent border-none text-center text-white placeholder-white/70 text-lg max-w-[80%]"
-              value={option.text}
-              onChange={(e) => handleOptionTextChange(option.id, e.target.value)}
-              placeholder="Type answer option here"
-            />
-          </Card>
-        ))}
+              <button 
+                className="absolute top-2 left-2 bg-white/20 rounded-full p-1 hover:bg-white/40"
+                onClick={() => handleRemoveOption(index)}
+                type="button"
+                aria-label="Delete option"
+                disabled={question.options.length <= 2}
+              >
+                <Trash2 className="h-4 w-4 text-white" />
+              </button>
+              {!isMultipleCorrect ? (
+                <div className="absolute top-2 right-2">
+                  <RadioGroup 
+                    value={isCorrect ? index.toString() : ""} 
+                    onValueChange={(value) => handleOptionCorrectChange(index, value === index.toString())}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem 
+                        value={index.toString()} 
+                        id={`radio-${index}`} 
+                        className="border-white text-white"
+                      />
+                    </div>
+                  </RadioGroup>
+                </div>
+              ) : (
+                <div className="absolute top-2 right-2">
+                  <Checkbox
+                    id={`checkbox-${index}`}
+                    checked={isCorrect}
+                    onCheckedChange={(checked) => {
+                      handleOptionCorrectChange(index, !!checked);
+                    }}
+                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-purple-800"
+                  />
+                </div>
+              )}
+              <Input
+                className="bg-transparent border-none text-center text-white placeholder-white/70 text-lg max-w-[80%]"
+                value={optionText}
+                onChange={(e) => handleOptionTextChange(index, e.target.value)}
+                placeholder="Type answer option here"
+              />
+            </Card>
+          );
+        })}
       </div>
       
       {question.options.length < 6 && (
@@ -283,7 +268,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
             <input 
               type="radio" 
               id="singleAnswer" 
-              checked={!question.multipleCorrectAnswers} 
+              checked={!isMultipleCorrect} 
               onChange={() => handleAnswerTypeChange(false)}
               className="mr-2"
             />
@@ -293,7 +278,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
             <input 
               type="radio" 
               id="multipleAnswers" 
-              checked={question.multipleCorrectAnswers} 
+              checked={isMultipleCorrect} 
               onChange={() => handleAnswerTypeChange(true)}
               className="mr-2"
             />
@@ -306,8 +291,9 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
         <Button 
           onClick={handleSave}
           className="bg-purple-800 hover:bg-purple-900 px-6"
+          disabled={isLoading}
         >
-          Save Question
+          {isLoading ? 'Saving...' : 'Save Question'}
         </Button>
       </div>
     </div>

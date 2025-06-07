@@ -1,44 +1,101 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import QuizSidebar from '@/components/quiz/QuizSidebar';
-import { Question } from '@/components/quiz/QuestionEditor';
+import { Question } from '@/lib/types';
 import { QuizFormValues } from '@/components/quiz/QuizDetailDialog';
 import QuizDetailDialog from '@/components/quiz/QuizDetailDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-
-interface QuizData {
-  id: string;
-  title: string;
-  description: string;
-  subject: string;
-  grade: string;
-  maxParticipants: number;
-  createdAt: string;
-  questions: Question[];
-}
+import { quizService } from '@/lib/quiz';
+import { questionService } from '@/lib/question';
+import { Quiz } from '@/lib/types';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const QuizEdit: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [quizData, setQuizData] = useState<QuizData | null>(null);
-  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+  const [selectedQuestionId, setSelectedQuestionId] = useState<number | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleteQuestion, setIsDeleteQuestion] = useState(false);
+  const queryClient = useQueryClient();
   
-  // Load quiz data from localStorage
-  useEffect(() => {
-    if (!quizId) return;
+  // Fetch quiz data
+  const { data: quizData, isLoading, error } = useQuery({
+    queryKey: ['quiz', quizId],
+    queryFn: () => quizService.getQuizById(Number(quizId)),
+    enabled: !!quizId,
+    staleTime: 60000 // 1 minute
+  });
 
-    const storedQuiz = localStorage.getItem(`quiz_${quizId}`);
-    if (storedQuiz) {
-      setQuizData(JSON.parse(storedQuiz));
-    } else {
+  // Update quiz mutation
+  const updateQuizMutation = useMutation({
+    mutationFn: (updatedQuiz: Quiz) => quizService.updateQuiz(Number(quizId), updatedQuiz),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quiz', quizId] });
+      toast({
+        title: "Quiz updated",
+        description: "Your quiz has been successfully updated."
+      });
+      setEditDialogOpen(false);
+    },
+    onError: (error) => {
+      console.error('Error updating quiz:', error);
+      toast({
+        title: "Update failed",
+        description: "There was a problem updating your quiz. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Delete quiz mutation
+  const deleteQuizMutation = useMutation({
+    mutationFn: () => quizService.deleteQuiz(Number(quizId)),
+    onSuccess: () => {
+      toast({
+        title: "Quiz deleted",
+        description: "Your quiz has been permanently deleted."
+      });
+      navigate('/admin');
+    },
+    onError: (error) => {
+      console.error('Error deleting quiz:', error);
+      toast({
+        title: "Delete failed",
+        description: "There was a problem deleting your quiz. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Delete question mutation
+  const deleteQuestionMutation = useMutation({
+    mutationFn: (questionId: number) => questionService.deleteQuestion(questionId, Number(quizId)),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quiz', quizId] });
+      toast({
+        title: "Question deleted",
+        description: "The question has been removed from your quiz."
+      });
+      setSelectedQuestionId(null);
+    },
+    onError: (error) => {
+      console.error('Error deleting question:', error);
+      toast({
+        title: "Delete failed",
+        description: "There was a problem deleting the question. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Handle error state
+  useEffect(() => {
+    if (error) {
       toast({
         title: "Quiz not found",
         description: "The quiz you're trying to edit doesn't exist.",
@@ -46,9 +103,9 @@ const QuizEdit: React.FC = () => {
       });
       navigate('/admin');
     }
-  }, [quizId, navigate, toast]);
+  }, [error, navigate, toast]);
 
-  const handleQuestionSelect = (questionId: string) => {
+  const handleQuestionSelect = (questionId: number) => {
     setSelectedQuestionId(questionId);
   };
 
@@ -68,21 +125,9 @@ const QuizEdit: React.FC = () => {
   };
 
   const handleDeleteQuestion = () => {
-    if (selectedQuestionId && quizData) {
-      const updatedQuiz = {
-        ...quizData,
-        questions: quizData.questions.filter(q => q.id !== selectedQuestionId)
-      };
-      
-      localStorage.setItem(`quiz_${quizId}`, JSON.stringify(updatedQuiz));
-      setQuizData(updatedQuiz);
-      setSelectedQuestionId(null);
+    if (selectedQuestionId) {
+      deleteQuestionMutation.mutate(selectedQuestionId);
       setDeleteDialogOpen(false);
-      
-      toast({
-        title: "Question deleted",
-        description: "The question has been removed from your quiz."
-      });
     }
   };
 
@@ -93,19 +138,7 @@ const QuizEdit: React.FC = () => {
 
   const handleDeleteQuiz = () => {
     if (quizId) {
-      localStorage.removeItem(`quiz_${quizId}`);
-      
-      // Update the quizzes list in Admin
-      const adminQuizzes = localStorage.getItem('admin_quizzes') || '[]';
-      const quizzes = JSON.parse(adminQuizzes).filter((q: { id: string }) => q.id !== quizId);
-      localStorage.setItem('admin_quizzes', JSON.stringify(quizzes));
-      
-      toast({
-        title: "Quiz deleted",
-        description: "Your quiz has been permanently deleted."
-      });
-      
-      navigate('/admin');
+      deleteQuizMutation.mutate();
       setDeleteDialogOpen(false);
     }
   };
@@ -113,75 +146,46 @@ const QuizEdit: React.FC = () => {
   const handleUpdateQuizDetails = (formData: QuizFormValues) => {
     if (!quizData) return;
     
-    const updatedQuiz = {
+    const updatedQuiz: Quiz = {
       ...quizData,
       ...formData
     };
     
-    localStorage.setItem(`quiz_${quizId}`, JSON.stringify(updatedQuiz));
-    setQuizData(updatedQuiz);
-    setEditDialogOpen(false);
-    
-    toast({
-      title: "Quiz updated",
-      description: "Your quiz details have been updated."
-    });
+    updateQuizMutation.mutate(updatedQuiz);
   };
 
+  // Handle saving the entire quiz
   const handleSaveQuiz = () => {
     if (!quizData) return;
     
-    // Validate that quiz has at least one question
-    if (quizData.questions.length === 0) {
-      toast({
-        title: "Cannot save quiz",
-        description: "A quiz must have at least one question.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // In a real app, we would send this to an API endpoint
-    // For now, let's update our local admin quizzes list
-    const adminQuizzes = localStorage.getItem('admin_quizzes') || '[]';
-    const quizzes = JSON.parse(adminQuizzes);
-    
-    // Check if quiz already exists in list, if so update it
-    const quizIndex = quizzes.findIndex((q: { id: string }) => q.id === quizId);
-    
-    if (quizIndex >= 0) {
-      quizzes[quizIndex] = {
-        id: quizData.id,
-        title: quizData.title,
-        questionsCount: quizData.questions.length,
-        createdAt: quizData.createdAt
-      };
-    } else {
-      quizzes.push({
-        id: quizData.id,
-        title: quizData.title,
-        questionsCount: quizData.questions.length,
-        createdAt: quizData.createdAt
-      });
-    }
-    
-    localStorage.setItem('admin_quizzes', JSON.stringify(quizzes));
-    
-    toast({
-      title: "Quiz saved",
-      description: "Your quiz has been saved and is ready to use."
+    updateQuizMutation.mutate(quizData, {
+      onSuccess: () => {
+        toast({
+          title: "Quiz saved",
+          description: "Your quiz has been saved successfully."
+        });
+        navigate(`/admin/quiz/${quizId}`);
+      }
     });
-    
-    // Navigate to the quiz view page
-    navigate(`/admin/quiz/${quizId}`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="container pt-24 pb-12">
+          <p className="text-center">Loading quiz data...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!quizData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="container pt-24 pb-12 px-4">
-          <p className="text-center">Loading quiz data...</p>
+        <div className="container pt-24 pb-12">
+          <p className="text-center">Quiz not found</p>
         </div>
       </div>
     );
@@ -191,63 +195,66 @@ const QuizEdit: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="container pt-24 pb-12 px-4">
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Left sidebar */}
-          <div className="md:w-1/4">
-            <QuizSidebar
-              quizDetails={{
-                title: quizData.title,
-                description: quizData.description,
-                subject: quizData.subject,
-                grade: quizData.grade,
-                maxParticipants: quizData.maxParticipants
-              }}
-              questions={quizData.questions}
-              currentQuestionId={selectedQuestionId || undefined}
-              onQuestionSelect={handleQuestionSelect}
-              onAddNewQuestion={handleAddQuestion}
-            />
-            
-            <div className="mt-4 bg-white p-4 rounded-lg shadow-md">
-              <Button 
-                onClick={() => setEditDialogOpen(true)}
-                variant="outline" 
-                className="w-full mb-2 text-purple-800 border-purple-800"
-              >
-                Edit Quiz Details
-              </Button>
-              <Button 
-                onClick={() => handleConfirmDelete(false)}
-                variant="outline" 
-                className="w-full border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-              >
-                Delete Quiz
-              </Button>
-            </div>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-purple-900">{quizData.title}</h1>
+          <div className="flex space-x-3">
+            <Button 
+              onClick={() => setEditDialogOpen(true)} 
+              variant="outline" 
+              className="border-purple-800 text-purple-800 hover:bg-purple-50"
+              disabled={updateQuizMutation.isPending}
+            >
+              Edit Details
+            </Button>
+            <Button 
+              onClick={handleSaveQuiz} 
+              className="bg-purple-800 hover:bg-purple-900"
+              disabled={updateQuizMutation.isPending}
+            >
+              {updateQuizMutation.isPending ? 'Saving..' : 'Save Quiz'}
+            </Button>
+            <Button 
+              onClick={() => handleConfirmDelete(false)} 
+              variant="outline" 
+              className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+              disabled={deleteQuizMutation.isPending}
+            >
+              Delete Quiz
+            </Button>
           </div>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <QuizSidebar 
+            quiz={quizData} 
+            onBack={() => navigate(`/admin/quiz/${quizId}`)}
+            currentQuestionId={selectedQuestionId || undefined}
+            onQuestionSelect={handleQuestionSelect}
+            onAddNewQuestion={handleAddQuestion}
+          />
           
-          {/* Main content area */}
-          <div className="md:w-3/4">
+          <div className="lg:col-span-3">
             <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-purple-900">Edit Quiz: {quizData.title}</h1>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold text-purple-900">Questions</h2>
                 <Button 
-                  onClick={handleSaveQuiz}
+                  onClick={handleAddQuestion}
                   className="bg-purple-800 hover:bg-purple-900"
                 >
-                  Save Quiz
+                  Add Question
                 </Button>
               </div>
               
               <div className="mb-6">
-                <h2 className="text-lg font-semibold mb-3">Questions</h2>
-                {quizData.questions.length > 0 ? (
-                  <div className="space-y-4">
+                {quizData.questions && quizData.questions.length > 0 ? (
+                  <div className="space-y-2">
                     {quizData.questions.map((question, index) => (
                       <div 
-                        key={question.id}
-                        className={`p-4 border rounded-lg cursor-pointer hover:bg-purple-50 transition-colors ${selectedQuestionId === question.id ? 'bg-purple-100 border-purple-300' : ''}`}
-                        onClick={() => setSelectedQuestionId(question.id)}
+                        key={question.id} 
+                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                          selectedQuestionId === question.id ? 'border-purple-500 bg-purple-50' : 'hover:bg-gray-50'
+                        }`}
+                        onClick={() => handleQuestionSelect(question.id)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
@@ -257,7 +264,7 @@ const QuizEdit: React.FC = () => {
                             <div className="font-medium">{question.text}</div>
                           </div>
                           <div className="text-sm text-gray-500">
-                            {question.points} {question.points === 1 ? 'point' : 'points'} • {question.timeLimit}s
+                            {question.points} {question.points === 1 ? 'point' : 'points'} • {question.duration}s
                           </div>
                         </div>
                       </div>
@@ -278,20 +285,25 @@ const QuizEdit: React.FC = () => {
               
               {selectedQuestionId && (
                 <div className="flex space-x-3">
-                  <Button onClick={handleEditQuestion} className="bg-purple-800 hover:bg-purple-900">
+                  <Button 
+                    onClick={handleEditQuestion} 
+                    className="bg-purple-800 hover:bg-purple-900"
+                    disabled={updateQuizMutation.isPending}
+                  >
                     Edit Question
                   </Button>
                   <Button 
                     onClick={() => handleConfirmDelete(true)} 
                     variant="outline" 
                     className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                    disabled={deleteQuestionMutation.isPending}
                   >
                     Delete Question
                   </Button>
                 </div>
               )}
               
-              {!selectedQuestionId && quizData.questions.length > 0 && (
+              {!selectedQuestionId && quizData.questions && quizData.questions.length > 0 && (
                 <Button 
                   onClick={handleAddQuestion}
                   className="bg-purple-800 hover:bg-purple-900"
@@ -316,6 +328,7 @@ const QuizEdit: React.FC = () => {
           grade: quizData.grade,
           maxParticipants: quizData.maxParticipants
         }}
+        isLoading={updateQuizMutation.isPending}
       />
       
       {/* Confirm Delete Dialog */}
@@ -325,8 +338,8 @@ const QuizEdit: React.FC = () => {
             <AlertDialogTitle>{isDeleteQuestion ? 'Delete Question' : 'Delete Quiz'}</AlertDialogTitle>
             <AlertDialogDescription>
               {isDeleteQuestion 
-                ? 'Are you sure you want to delete this question? This action cannot be undone.'
-                : 'Are you sure you want to delete this entire quiz and all its questions? This action cannot be undone.'
+                ? 'Are you sure you want to delete this question?'
+                : 'Are you sure you want to delete this entire quiz and all its questions?'
               }
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -335,8 +348,9 @@ const QuizEdit: React.FC = () => {
             <AlertDialogAction 
               className="bg-red-500 hover:bg-red-600"
               onClick={isDeleteQuestion ? handleDeleteQuestion : handleDeleteQuiz}
+              disabled={isDeleteQuestion ? deleteQuestionMutation.isPending : deleteQuizMutation.isPending}
             >
-              Delete
+              {(isDeleteQuestion ? deleteQuestionMutation.isPending : deleteQuizMutation.isPending) ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -6,37 +6,41 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import Navbar from '@/components/AuthNavbar';
 import { toast } from 'sonner';
+import { authService, LoginRequest } from '@/lib/auth';
 
 const Login: React.FC = () => {
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!username || !password) {
       toast.error('Please fill in all fields');
       return;
     }
-    
-    // In a real app, you would validate with your backend
-    // For now, we'll check against localStorage
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const user = users.find((u: { username: string, password: string }) => 
-      u.username === username && u.password === password
-    );
-    
-    if (!user) {
-      toast.error('Invalid username or password');
-      return;
+    setIsLoading(true)
+
+    try{
+      const loginRequest : LoginRequest = {username,password};
+      const response = await authService.login(loginRequest);
+      localStorage.setItem('token' , response.token)
+      const payload = JSON.parse(atob(response.token.split('.')[1]));
+      localStorage.setItem('userId', payload.userId.toString());
+
+      toast.success('Login Succesfull!');
+      navigate('/admin');
     }
-    
-    // Set current user
-    localStorage.setItem('currentUser', username);
-    
-    toast.success('Login successful!');
-    navigate('/admin');
+    catch (error) {
+      console.error('Login error:', error);
+      toast.error('Invalid username or password');
+    }
+    finally {
+      setIsLoading(false);
+    }
+
   };
 
   return (
@@ -59,6 +63,7 @@ const Login: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required 
+                  disabled={isLoading}
                 />
               </div>
               <div className="space-y-2">
@@ -70,10 +75,11 @@ const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
+                  disabled={isLoading}
                 />
               </div>
-              <Button className="w-full bg-quizrush-purple hover:bg-quizrush-light-purple" type="submit">
-                Log In
+              <Button className="w-full bg-quizrush-purple hover:bg-quizrush-light-purple" type="submit" disabled={isLoading}>
+              {isLoading ? 'Logging in...' : 'Log In'}
               </Button>
             </form>
           </CardContent>

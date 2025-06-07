@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -39,6 +38,7 @@ interface QuizDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   onSubmit: (data: QuizFormValues) => void;
   defaultValues?: QuizFormValues;
+  isLoading? : boolean;
 }
 
 const QuizDetailDialog: React.FC<QuizDetailDialogProps> = ({ 
@@ -51,7 +51,8 @@ const QuizDetailDialog: React.FC<QuizDetailDialogProps> = ({
     maxParticipants: 30,
     subject: "",
     grade: ""
-  }
+  },
+  isLoading
 }) => {
   const form = useForm<QuizFormValues>({
     resolver: zodResolver(formSchema),
@@ -171,8 +172,8 @@ const QuizDetailDialog: React.FC<QuizDetailDialogProps> = ({
               )}
             />
             <DialogFooter>
-              <Button type="submit" className="bg-purple-800 hover:bg-purple-900">
-                Save Quiz Details
+              <Button type="submit" disabled={isLoading} className="bg-purple-800 hover:bg-purple-900">
+                {isLoading ? 'Saving...' : 'Save Quiz Details'}
               </Button>
             </DialogFooter>
           </form>

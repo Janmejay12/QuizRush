@@ -1,48 +1,81 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Copy, Users, Clock } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { quizSessionService } from '@/lib/quiz-session';
+import { Quiz, Participant } from '@/lib/types';
+import { quizService } from '@/lib/quiz';
 
 const HostWaitingRoom: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [roomCode] = useState('331790'); // Mock room code
-  const [participants, setParticipants] = useState<string[]>([]);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [quizStarted, setQuizStarted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock participants joining
+  // Fetch quiz data when component mounts
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setParticipants(['Player1']);
-    }, 3000);
+    if (!quizId) return;
 
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchQuiz = async () => {
+      try {
+        setIsLoading(true);
+        const fetchedQuiz = await quizService.getQuizById(parseInt(quizId));
+        setQuiz(fetchedQuiz);
+        setParticipants(fetchedQuiz.participants || []);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching quiz:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load quiz data. Please try again.",
+          variant: "destructive"
+        });
+        setIsLoading(false);
+      }
+    };
+
+    fetchQuiz();
+  }, [quizId, toast]);
 
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(roomCode);
+    if (!quiz?.roomCode) return;
+    
+    navigator.clipboard.writeText(quiz.roomCode);
     toast({
       title: "Room code copied!",
       description: "Share this code with participants to join the quiz.",
     });
   };
 
-  const handleStartQuiz = () => {
-    setQuizStarted(true);
-    // TODO: Navigate to host question view when backend is connected
-    // navigate(`/host-quiz/${quizId}/${roomCode}`);
-    toast({
-      title: "Quiz Started!",
-      description: "The quiz has begun for all participants.",
-    });
+  const handleStartQuiz = async () => {
+    if (!quizId) return;
+    
+    try {
+      await quizSessionService.startQuiz(parseInt(quizId));
+      setQuizStarted(true);
+      toast({
+        title: "Quiz Started!",
+        description: "The quiz has begun for all participants.",
+      });
+      // Navigate to host question view
+      navigate(`/host-quiz/${quizId}`);
+    } catch (error) {
+      console.error('Error starting quiz:', error);
+      toast({
+        title: "Error",
+        description: "Failed to start the quiz. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEndQuiz = () => {
-    navigate('/admin');
-  };
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading quiz data...</div>;
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden" style={{
@@ -59,12 +92,6 @@ const HostWaitingRoom: React.FC = () => {
       {/* Navbar */}
       <nav className="relative z-10 flex justify-between items-center p-6 bg-black/20 backdrop-blur-sm">
         <div className="text-white text-2xl font-bold">QuizRush</div>
-        <Button 
-          onClick={handleEndQuiz}
-          className="bg-red-600 hover:bg-red-700 text-white px-6 py-2"
-        >
-          End
-        </Button>
       </nav>
 
       {/* Main content */}
@@ -95,7 +122,7 @@ const HostWaitingRoom: React.FC = () => {
                 </div>
               </div>
               <div className="flex items-center">
-                <div className="text-white text-3xl font-bold tracking-wider">{roomCode}</div>
+                <div className="text-white text-3xl font-bold tracking-wider">{quiz?.roomCode || 'Loading...'}</div>
                 <Button 
                   onClick={handleCopyCode}
                   variant="ghost" 
@@ -106,30 +133,11 @@ const HostWaitingRoom: React.FC = () => {
               </div>
             </div>
           </div>
-
-          {/* QR Code section */}
-          <div className="text-right mb-8">
-            <div className="inline-block">
-              <div className="bg-white w-32 h-32 rounded-lg mb-2 flex items-center justify-center">
-                <div className="text-xs text-gray-500">QR Code</div>
-              </div>
-              <p className="text-white text-sm">Share Via</p>
-            </div>
-          </div>
-
           {/* Auto start and Start button */}
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center bg-black/30 rounded-lg px-4 py-3">
-              <Clock className="w-5 h-5 text-white mr-2" />
-              <span className="text-white">Auto start your quiz</span>
-              <div className="ml-4 bg-white/20 rounded p-2">
-                <div className="w-0 h-0 border-l-4 border-l-white border-t-2 border-t-transparent border-b-2 border-b-transparent"></div>
-              </div>
-            </div>
-
             <Button 
               onClick={handleStartQuiz}
-              disabled={quizStarted}
+              disabled={quizStarted || (participants.length === 0)}
               className="bg-purple-600 hover:bg-purple-700 text-white px-12 py-4 text-lg font-semibold rounded-lg"
             >
               {quizStarted ? 'Quiz Started' : 'START'}
