@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/quizzes")
@@ -19,12 +20,14 @@ public class QuizController {
     }
 
     @PostMapping("/host/{hostId}")
-    public ResponseEntity<Quiz> createQuiz(@RequestBody Quiz quiz, @PathVariable Long hostId){
+    public ResponseEntity<?> createQuiz(@RequestBody Quiz quiz, @PathVariable Long hostId){
         try {
             Quiz createdQuiz = quizService.createQuiz(quiz,hostId);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdQuiz);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            e.printStackTrace(); // Log the full stack trace
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
     @GetMapping("/{id}")

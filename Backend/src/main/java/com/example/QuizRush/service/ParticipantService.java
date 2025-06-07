@@ -1,5 +1,6 @@
 package com.example.QuizRush.service;
 
+import com.example.QuizRush.dto.ParticipantJoinResponse;
 import com.example.QuizRush.dto.ParticipantLoginRequest;
 import com.example.QuizRush.dto.websocket.ParticipantDTO;
 import com.example.QuizRush.entities.Participant;
@@ -9,9 +10,9 @@ import com.example.QuizRush.exception.CustomException;
 import com.example.QuizRush.mapper.ParticipantMapper;
 import com.example.QuizRush.repository.ParticipantRepository;
 import com.example.QuizRush.repository.QuizRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -30,7 +31,7 @@ public class ParticipantService {
         this.participantMapper = participantMapper;
     }
 
-    public String joinQuiz(ParticipantLoginRequest participantLoginRequest){
+    public ParticipantJoinResponse joinQuiz(ParticipantLoginRequest participantLoginRequest){
 
         //check if quiz exists
         Quiz quiz = quizRepository.findByRoomCode(participantLoginRequest.getQuizRoomCode())
@@ -40,6 +41,9 @@ public class ParticipantService {
         if(existingParticipant.isPresent()){
             throw new CustomException("Nickname is already taken");
         }
+        if(!quiz.getStatus().equals(QuizStatus.WAITING)){
+            throw new CustomException("Quiz is not open for joining");
+        }
         //check if maximum participant limit is fulfilled
         if(quiz.getParticipants().size() >= quiz.getMaxParticipants()){
             throw new CustomException("Quiz room is full");
@@ -48,9 +52,11 @@ public class ParticipantService {
         Participant participant = new Participant(participantLoginRequest.getNickname(), quiz);
 
         //genrating token for participant
-        String token = jwtService.generateToken(participant.getNickname(), "PARTICIPANT");
+        String token = jwtService.generateToken(participant.getNickname(), "PARTICIPANT",null);
         participant.setToken(token);
-        
+
+        participantRepository.save(participant);
+
         // Add participant to quiz's participants collection
         quiz.addParticipant(participant);
 
@@ -59,7 +65,20 @@ public class ParticipantService {
         
         //quiz needs to be saved coz of bidirectional mapping and saving quiz will also save participants bcoz of cascade type ALL
         quizRepository.save(quiz);
-        return token;
+
+        ParticipantJoinResponse participantJoinResponse = new ParticipantJoinResponse(
+                token,
+                participant.getId(),
+                quiz.getId()
+        );
+        return participantJoinResponse;
+    }
+
+    public List<Participant> getParticipants(Long quizId){
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new CustomException("Quiz not found"));
+        List<Participant> participants = quiz.getParticipants();
+        return participants;
     }
 
     public void leaveQuiz(String roomCode, String nickname){

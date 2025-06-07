@@ -49,8 +49,6 @@ public class QuizTimerService {
     }
 
     public void startQuestionTimer(String roomCode, int durationInSeconds) {
-        log.debug("Starting question timer for room: {} with duration: {}s", roomCode, durationInSeconds);
-
         // Stop existing timer if any
         stopQuestionTimer(roomCode);
 
@@ -94,16 +92,11 @@ public class QuizTimerService {
     }
 
     public void recordAnswerTime(String roomCode, Long participantId, int timeSpent) {
-        log.debug("Recording answer time for room: {}, participant: {}, time: {}s", roomCode, participantId, timeSpent);
 
         // Check if participant has already answered this question
         ConcurrentHashMap<Long, Boolean> answeredMap = participantAnsweredStatus.computeIfAbsent(
                 roomCode, k -> new ConcurrentHashMap<>());
 
-        if (Boolean.TRUE.equals(answeredMap.get(participantId))) {
-            log.warn("Participant {} in room {} has already answered current question", participantId, roomCode);
-            return;
-        }
 
         // Mark participant as having answered this question
         answeredMap.put(participantId, true);
@@ -111,8 +104,6 @@ public class QuizTimerService {
         // Don't record times greater than the question duration
         int maxDuration = originalDurations.getOrDefault(roomCode, 0);
         if (timeSpent > maxDuration) {
-            log.debug("Capping time spent from {}s to {}s for participant {} in room {}",
-                    timeSpent, maxDuration, participantId, roomCode);
             timeSpent = maxDuration;
         }
 
@@ -124,9 +115,6 @@ public class QuizTimerService {
         int currentTotal = roomTimings.getOrDefault(participantId, 0);
         int newTotal = currentTotal + timeSpent;
 
-        log.debug("Updating total time for participant {} in room {} from {}s to {}s",
-                participantId, roomCode, currentTotal, newTotal);
-
         roomTimings.put(participantId, newTotal);
     }
 
@@ -137,10 +125,6 @@ public class QuizTimerService {
      */
     public int calculateTimeSpentExact(String roomCode) {
         Long startTime = questionStartTimes.get(roomCode);
-        if (startTime == null) {
-            log.warn("No start time found for room {}", roomCode);
-            return 0;
-        }
 
         long currentTime = System.currentTimeMillis();
         long elapsedMillis = currentTime - startTime;

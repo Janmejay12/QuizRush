@@ -31,7 +31,6 @@ public class LeaderboardService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public LeaderboardDTO generateLeaderboard(Quiz quizParam, boolean isFinal) {
-        log.debug("Generating leaderboard for quiz room: {}, isFinal: {}", quizParam.getRoomCode(), isFinal);
 
         // Force a refresh of the quiz and participants to get the latest data
         Quiz quiz = quizRepository.findById(quizParam.getId())
@@ -44,14 +43,6 @@ public class LeaderboardService {
         if (participants == null || participants.isEmpty()) {
             log.warn("No participants found for quiz room: {}", roomCode);
             return new LeaderboardDTO(List.of(), isFinal);
-        }
-
-        // Debug participants data
-        log.debug("Leaderboard generation - found {} participants", participants.size());
-        for (Participant p : participants) {
-            log.debug("Participant: {}, ID: {}, Score: {}, Time: {}s",
-                    p.getNickname(), p.getId(), p.getScore(),
-                    quizTimerService.getTotalTime(roomCode, p.getId()));
         }
 
         List<LeaderBoardEntryDTO> entries = participants.stream()
@@ -70,18 +61,10 @@ public class LeaderboardService {
             }
         }
 
-        // Log the final leaderboard entries for debugging
-        log.debug("Final leaderboard with {} entries:", entries.size());
-        for (LeaderBoardEntryDTO entry : entries) {
-            log.debug("Rank {}: {} - Score: {}, Time: {}s",
-                    entry.getRank(), entry.getNickname(), entry.getScore(), entry.getTotalTimeSpent());
-        }
-
         return new LeaderboardDTO(entries, isFinal);
     }
 
     private LeaderBoardEntryDTO createEntry(String roomCode, Participant participant) {
-        log.trace("Creating leaderboard entry for participant: {} in room: {}", participant.getNickname(), roomCode);
         int totalTime = quizTimerService.getTotalTime(roomCode, participant.getId());
 
         return new LeaderBoardEntryDTO(

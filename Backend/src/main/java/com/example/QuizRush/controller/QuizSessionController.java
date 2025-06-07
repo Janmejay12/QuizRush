@@ -21,6 +21,17 @@ public class QuizSessionController {
     public QuizSessionController(QuizSessionService quizSessionService) {
         this.quizSessionService = quizSessionService;
     }
+
+    @PostMapping("/{quizId}/open")
+    public ResponseEntity<?> openQuizForParticipants(@PathVariable long quizId,@RequestParam Long hostId){
+        try{
+            return ResponseEntity.ok(quizSessionService.openQuiz(quizId,hostId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PostMapping("/{quizId}/start")
     public ResponseEntity<Quiz> startQuiz(@PathVariable Long quizId, @RequestParam Long hostId){
         try {

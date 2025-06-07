@@ -30,6 +30,15 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
+        // Skip JWT validation for signup and login endpoints
+        String requestPath = request.getRequestURI();
+
+
+        if (requestPath.contains("/api/host/signup") || requestPath.contains("/api/host/login") ||
+                requestPath.contains("/api/participant/join")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         final String authorizationHeader = request.getHeader("Authorization");
 
         String username = null;

@@ -72,6 +72,4 @@ public class QuestionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    
-    
 }

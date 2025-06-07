@@ -33,6 +33,10 @@ public class Quiz {
     @JsonManagedReference
     private List<Participant> participants;
 
+    private Integer currentQuestionIndex = 0;
+
+    @Enumerated(EnumType.STRING)
+    private QuizStatus status = QuizStatus.CREATED;
 
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
@@ -49,10 +53,7 @@ public class Quiz {
         updatedAt = LocalDateTime.now();
     }
 
-    @Enumerated(EnumType.STRING)
-    private QuizStatus status = QuizStatus.WAITING;
 
-    private Integer currentQuestionIndex = 0;
 
     public void addParticipant(Participant participant) {
         if (participants == null) {

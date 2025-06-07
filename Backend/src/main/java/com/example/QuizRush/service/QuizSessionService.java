@@ -38,6 +38,18 @@ public class QuizSessionService {
         this.leaderboardService = leaderboardService;
     }
 
+    public Quiz openQuiz(Long quizId, Long hostId){
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new CustomException("Quiz not found"));
+        if(!quiz.getHost().getId().equals(hostId))
+            throw new CustomException("Unauthorized to open this quiz");
+        if(quiz.getStatus() != QuizStatus.CREATED)
+            throw new CustomException("Quiz is not in CREATED state.");
+        quiz.setStatus(QuizStatus.WAITING);
+        quizRepository.save(quiz);
+        return(quiz);
+    }
+
     public Quiz startQuiz(Long quizId, Long hostId){
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new CustomException("Quiz not found"));

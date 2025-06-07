@@ -1,6 +1,7 @@
 package com.example.QuizRush.service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,13 +18,19 @@ public class JwtService {
     @Value("${jwt.expirationTime}")
     private long expirationTime;
 
-    public String generateToken(String username,String role) {
-        return Jwts.builder()
+    public String generateToken(String username,String role,Long userId) {
+        JwtBuilder builder = Jwts.builder()
                 .setSubject(username)
                 .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
-                .signWith(SignatureAlgorithm.HS256, secretkey)
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime));
+
+        // Only add userId if it's not null
+        if (userId != null) {
+            builder.claim("userId", userId);
+        }
+
+        return builder.signWith(SignatureAlgorithm.HS256, secretkey)
                 .compact();
     }
     public Boolean validateToken(String token, String username) {
