@@ -74,7 +74,6 @@ public class QuizTimerService {
 
             if (timeLeft <= 0) {
                 stopQuestionTimer(roomCode);
-                webSocketService.broadcastQuestionEnded(roomCode);
                 quizSessionService.handleQuestionTimeout(roomCode);
             }
         }, 0, 1, TimeUnit.SECONDS);

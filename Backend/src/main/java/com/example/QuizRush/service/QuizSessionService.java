@@ -195,34 +195,25 @@ public class QuizSessionService {
     @Transactional
     public void handleQuestionTimeout(String roomCode) {
         try {
-            System.out.println("Handling question timeout for room: " + roomCode);
             Quiz quiz = quizRepository.findByRoomCode(roomCode)
                     .orElseThrow(() -> new CustomException("Quiz not found for room: " + roomCode));
 
             if (quiz.getStatus() != QuizStatus.STARTED) {
-                System.out.println("Quiz is not in progress for room: " + roomCode);
                 throw new CustomException("Quiz is not in progress");
             }
 
-            System.out.println("Broadcasting question ended for room: " + roomCode);
             webSocketService.broadcastQuestionEnded(roomCode);
 
-            System.out.println("Generating leaderboard for room: " + roomCode);
             LeaderboardDTO leaderboard = leaderboardService.generateLeaderboard(quiz, false);
             if (leaderboard == null) {
-                System.out.println("Generated leaderboard is null for room: " + roomCode);
                 return;
             }
             
-            System.out.println("Generated leaderboard with " + 
-                leaderboard.getEntries().size() + " entries for room: " + roomCode);
+
             webSocketService.broadcastLeaderboardUpdate(roomCode, leaderboard);
-            System.out.println("Successfully broadcast leaderboard for room: " + roomCode);
 
             quizRepository.save(quiz);
-            System.out.println("Question timeout handling completed for room: " + roomCode);
         } catch (Exception e) {
-            System.out.println("Error handling question timeout for room " + roomCode + ": " + e.getMessage());
             throw e;
         }
     }

@@ -47,8 +47,8 @@ const JoinQuiz: React.FC = () => {
       
       toast.success('Joining quiz room...');
       
-      // Navigate to quiz room
-      navigate(`/participant-waiting/${response.quizId}`);
+      // Navigate to quiz room with both quizId and participantId
+      navigate(`/participant-waiting/${response.quizId}/${response.participantId}`);
     } catch (error: any) {
       console.error('Error joining quiz:', error);
       

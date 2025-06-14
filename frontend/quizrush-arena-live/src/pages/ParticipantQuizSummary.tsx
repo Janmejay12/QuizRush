@@ -1,8 +1,9 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, XCircle, Clock, Target } from 'lucide-react';
+import { websocketService } from '@/lib/Websocket';
+import { toast } from 'sonner';
 
 interface QuestionSummary {
   id: string;
@@ -11,13 +12,22 @@ interface QuestionSummary {
   isPartiallyCorrect?: boolean;
 }
 
+interface QuizSummary {
+  correct: number;
+  partiallyCorrect: number;
+  incorrect: number;
+  avgTimePerQuestion: number;
+  overallAccuracy: number;
+  questions: QuestionSummary[];
+}
+
 const ParticipantQuizSummary: React.FC = () => {
   const { quizId, participantId } = useParams<{ quizId: string; participantId: string }>();
   const navigate = useNavigate();
   const [showSummary, setShowSummary] = useState(false);
 
   // Mock participant performance data
-  const performanceData = {
+  const [performanceData, setPerformanceData] = useState({
     correct: 2,
     partiallyCorrect: 0,
     incorrect: 1,
@@ -28,12 +38,64 @@ const ParticipantQuizSummary: React.FC = () => {
       { id: '2', text: 'where do i live?', isCorrect: false },
       { id: '3', text: 'My name?', isCorrect: true }
     ] as QuestionSummary[]
-  };
+  });
 
+  // WebSocket connection
   useEffect(() => {
+    const roomCode = localStorage.getItem('roomCode');
+    if (!roomCode) {
+      console.error('Room code not found');
+      navigate('/');
+      return;
+    }
+
+    let isSubscribed = true;
+
+    const connectWebSocket = async () => {
+      try {
+        if (!websocketService.isConnected()) {
+          await websocketService.connect();
+        }
+
+        await websocketService.subscribeToQuiz(roomCode, {
+          onLeaderboardUpdate: (leaderboard) => {
+            if (!isSubscribed) return;
+            
+            const participant = leaderboard.entries.find(
+              entry => entry.participantId === parseInt(participantId || '0')
+            );
+            
+            if (participant) {
+              // Update accuracy based on leaderboard data
+              setPerformanceData(prev => ({
+                ...prev,
+                overallAccuracy: Math.round((participant.score / (prev.questions.length * 100)) * 100)
+              }));
+            }
+          }
+        });
+
+      } catch (error) {
+        console.error('WebSocket connection error:', error);
+        toast.error('Connection error. Please refresh the page.', {
+          position: 'top-center'
+        });
+      }
+    };
+
+    connectWebSocket();
+
+    // Show summary with animation
     const timer = setTimeout(() => setShowSummary(true), 500);
-    return () => clearTimeout(timer);
-  }, []);
+
+    return () => {
+      isSubscribed = false;
+      clearTimeout(timer);
+      if (roomCode) {
+        websocketService.unsubscribeFromQuiz(roomCode);
+      }
+    };
+  }, [quizId, participantId, navigate]);
 
   const handleBackToHome = () => {
     navigate('/');

@@ -33,3 +33,16 @@ export interface Question {
     quiz?: Quiz;  // Reference back to the quiz
 }
 
+export interface LeaderboardDTO {
+  entries: LeaderBoardEntryDTO[];
+  isFinal: boolean;
+}
+
+export interface LeaderBoardEntryDTO {
+  participantId: number;
+  nickname: string;
+  score: number;
+  totalTimeSpent: number;
+  rank: number;
+}
+

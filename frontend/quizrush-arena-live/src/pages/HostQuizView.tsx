@@ -1,80 +1,213 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import CircularTimer from '@/components/quiz/CircularTimer';
-
-interface Question {
-  id: string;
-  text: string;
-  options: { id: string; text: string; isCorrect: boolean }[];
-  timeLimit: number;
-  points: number;
-}
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { quizSessionService } from '@/lib/quiz-session';
+import { websocketService } from '@/lib/Websocket';
+import { useToast } from '@/components/ui/use-toast';
+import { Question } from '@/lib/types';
+import { quizService } from '@/lib/quiz';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const HostQuizView: React.FC = () => {
   const { quizId, roomCode } = useParams<{ quizId: string; roomCode: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(30);
   const [canProceed, setCanProceed] = useState(false);
+  const [isQuizEnded, setIsQuizEnded] = useState(false);
+  const [showEndQuizDialog, setShowEndQuizDialog] = useState(false);
+  const [isLastQuestion, setIsLastQuestion] = useState(false);
 
-  // Mock questions data
-  const questions: Question[] = [
-    {
-      id: '1',
-      text: 'What is the capital of France?',
-      options: [
-        { id: 'a', text: 'London', isCorrect: false },
-        { id: 'b', text: 'Berlin', isCorrect: false },
-        { id: 'c', text: 'Paris', isCorrect: true },
-        { id: 'd', text: 'Madrid', isCorrect: false }
-      ],
-      timeLimit: 30,
-      points: 1000
-    },
-    {
-      id: '2',
-      text: 'Which planet is known as the Red Planet?',
-      options: [
-        { id: 'a', text: 'Venus', isCorrect: false },
-        { id: 'b', text: 'Mars', isCorrect: true },
-        { id: 'c', text: 'Jupiter', isCorrect: false },
-        { id: 'd', text: 'Saturn', isCorrect: false }
-      ],
-      timeLimit: 25,
-      points: 1000
-    }
-  ];
+  // Fetch quiz data to get total questions
+  const { data: quiz } = useQuery({
+    queryKey: ['quiz', quizId],
+    queryFn: () => quizService.getQuizById(Number(quizId)),
+    enabled: !!quizId
+  });
 
-  const currentQuestion = questions[currentQuestionIndex];
-
+  // Update isLastQuestion whenever currentQuestionIndex or quiz changes
   useEffect(() => {
+    if (quiz?.questions?.length) {
+      setIsLastQuestion(currentQuestionIndex === quiz.questions.length - 1);
+    }
+  }, [currentQuestionIndex, quiz?.questions?.length]);
+
+  // Fetch current question
+  const { data: currentQuestion, isLoading } = useQuery({
+    queryKey: ['current-question', quizId],
+    queryFn: () => quizSessionService.getCurrentQuestion(Number(quizId)),
+    enabled: !!quizId && !isQuizEnded,
+    refetchInterval: false
+  });
+
+  // Next question mutation
+  const nextQuestionMutation = useMutation({
+    mutationFn: () => quizSessionService.nextQuestion(Number(quizId)),
+    onSuccess: (newQuestion) => {
+      queryClient.setQueryData(['current-question', quizId], newQuestion);
+      setCurrentQuestionIndex(prev => prev + 1);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to move to next question. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // End quiz mutation
+  const endQuizMutation = useMutation({
+    mutationFn: () => {
+      console.log('[Quiz End] Attempting to end quiz');
+      return quizSessionService.endQuiz(Number(quizId));
+    },
+    onSuccess: () => {
+      console.log('[Quiz End] Successfully ended quiz, navigating to summary');
+      setIsQuizEnded(true);
+      // Navigate to quiz summary
+      navigate(`/host-summary/${quizId}`);
+    },
+    onError: (error) => {
+      console.error('[Quiz End] Failed to end quiz:', error);
+      toast({
+        title: "Error",
+        description: "Failed to end the quiz. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Initialize timer when currentQuestion changes
+  useEffect(() => {
+    if (currentQuestion && !isQuizEnded) {
+      setTimeLeft(currentQuestion.duration);
+      setCanProceed(false); // Reset canProceed when question changes
+    }
+  }, [currentQuestion?.id, isQuizEnded, currentQuestionIndex]);
+
+  // Timer effect
+  useEffect(() => {
+    if (!currentQuestion || isQuizEnded || timeLeft === null || timeLeft < 0) {
+      return;
+    }
+
     if (timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      const timer = setTimeout(() => {
+        console.log('[Timer] Time remaining:', timeLeft - 1);
+        setTimeLeft(prev => prev - 1);
+      }, 1000);
       return () => clearTimeout(timer);
-    } else {
+    } else if (timeLeft === 0) {
+      console.log('[Timer] Time is up! Enabling next button');
       setCanProceed(true);
     }
-  }, [timeLeft]);
+  }, [timeLeft, currentQuestion, isQuizEnded]);
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setTimeLeft(questions[currentQuestionIndex + 1].timeLimit);
-      setCanProceed(false);
+  // WebSocket connection
+  useEffect(() => {
+    if (!roomCode || !quizId) return;
+
+    const connectWebSocket = async () => {
+      try {
+        await websocketService.connect();
+        await websocketService.subscribeToQuiz(roomCode, {
+          onQuizEnded: () => {
+            setIsQuizEnded(true);
+            navigate(`/host-summary/${quizId}`);
+          }
+        });
+      } catch (error) {
+        console.error('WebSocket connection error:', error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to quiz room. Some features may be limited.",
+          variant: "destructive"
+        });
+      }
+    };
+
+    connectWebSocket();
+
+    return () => {
+      if (roomCode) {
+        websocketService.unsubscribeFromQuiz(roomCode);
+      }
+    };
+  }, [roomCode, quizId, navigate, queryClient, toast]);
+
+  const handleNextQuestion = async () => {
+    if (!canProceed) {
+      console.log('[Next/End] Cannot proceed - timer not finished');
+      return;
+    }
+    
+    if (isLastQuestion) {
+      console.log('[Next/End] On last question, ending quiz');
+      endQuizMutation.mutate();
     } else {
-      // TODO: Navigate to final leaderboard
-      // navigate(`/leaderboard/${quizId}/${roomCode}`);
+      console.log('[Next/End] Moving to next question');
+      nextQuestionMutation.mutate();
     }
   };
 
-  const handleEndQuiz = () => {
-    navigate('/admin');
+  const handleEndQuiz = async () => {
+    setShowEndQuizDialog(true);
   };
+
+  const confirmEndQuiz = () => {
+    setShowEndQuizDialog(false);
+    endQuizMutation.mutate();
+  };
+
+  if (isLoading || !currentQuestion) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading question...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900">
+      {/* End Quiz Dialog */}
+      <Dialog open={showEndQuizDialog} onOpenChange={setShowEndQuizDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>End Quiz?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to end the quiz? This will end the quiz for all participants.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowEndQuizDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmEndQuiz}
+            >
+              End Quiz
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Navbar */}
       <nav className="flex justify-between items-center p-6 bg-black/20 backdrop-blur-sm">
         <div className="text-white text-2xl font-bold">QuizRush</div>
@@ -90,54 +223,55 @@ const HostQuizView: React.FC = () => {
       <div className="flex flex-col items-center justify-center px-6 py-12">
         {/* Timer */}
         <div className="mb-8">
-          <CircularTimer timeLeft={timeLeft} totalTime={currentQuestion.timeLimit} />
+          <CircularTimer timeLeft={timeLeft} totalTime={currentQuestion.duration} />
         </div>
 
         {/* Question */}
         <div className="bg-black/40 backdrop-blur-md rounded-2xl p-8 max-w-4xl w-full mb-8">
           <div className="text-center mb-6">
             <div className="text-white text-sm mb-2">
-              Question {currentQuestionIndex + 1} of {questions.length}
+              Question {currentQuestionIndex + 1}
             </div>
             <h2 className="text-white text-2xl font-bold mb-4">{currentQuestion.text}</h2>
+            <div className="text-white/70 text-sm">
+              {currentQuestion.points} points
+            </div>
           </div>
 
           {/* Options */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             {currentQuestion.options.map((option, index) => (
               <div
-                key={option.id}
-                className={`p-6 rounded-lg text-white text-lg font-semibold text-center ${
-                  option.isCorrect 
+                key={index}
+                className={`p-6 rounded-lg text-white text-lg font-semibold text-center min-h-[120px] flex flex-col justify-center ${
+                  currentQuestion.correctOptionIndices.includes(index)
                     ? 'bg-green-500 border-2 border-green-300' 
                     : 'bg-gray-600'
                 }`}
               >
-                {option.text}
-                {option.isCorrect && (
+                <div>{option}</div>
+                {currentQuestion.correctOptionIndices.includes(index) && (
                   <div className="text-sm mt-2 text-green-100">✓ Correct Answer</div>
                 )}
               </div>
             ))}
           </div>
-
-          <div className="text-center text-white">
-            <div className="text-sm">Points: {currentQuestion.points}</div>
-          </div>
         </div>
 
-        {/* Next button */}
+        {/* Next/End button */}
         <div className="flex justify-end w-full max-w-4xl">
           <Button
             onClick={handleNextQuestion}
             disabled={!canProceed}
             className={`px-8 py-3 text-lg ${
               canProceed 
-                ? 'bg-purple-600 hover:bg-purple-700' 
+                ? isLastQuestion 
+                  ? 'bg-red-600 hover:bg-red-700' 
+                  : 'bg-purple-600 hover:bg-purple-700' 
                 : 'bg-gray-500 cursor-not-allowed'
             }`}
           >
-            {currentQuestionIndex === questions.length - 1 ? 'Finish Quiz' : 'Next Question'}
+            {isLastQuestion ? 'End Quiz' : 'Next Question'}
           </Button>
         </div>
       </div>

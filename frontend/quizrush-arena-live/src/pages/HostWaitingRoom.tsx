@@ -2,52 +2,121 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Copy, Users, Clock } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
 import { quizSessionService } from '@/lib/quiz-session';
 import { Quiz, Participant } from '@/lib/types';
 import { quizService } from '@/lib/quiz';
+import { websocketService } from '@/lib/Websocket';
+import { toast } from 'sonner';
 
 const HostWaitingRoom: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [quizStarted, setQuizStarted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch quiz data when component mounts
+  // Fetch quiz data and handle initial setup
   useEffect(() => {
     if (!quizId) return;
 
-    const fetchQuiz = async () => {
+    const initializeQuiz = async () => {
       try {
         setIsLoading(true);
+        
+        // Fetch quiz data
         const fetchedQuiz = await quizService.getQuizById(parseInt(quizId));
         setQuiz(fetchedQuiz);
         setParticipants(fetchedQuiz.participants || []);
+        
+        const status = await quizSessionService.getQuizStatus(parseInt(quizId));
+        
+        if (status === 'STARTED') {
+          // If already started, navigate to host view
+          setQuizStarted(true);
+          navigate(`/host-quiz/${quizId}`);
+          return;
+        } else if (status === 'CREATED') {
+          // If in CREATED state, open it for participants
+          await quizSessionService.openQuizForParticipants(parseInt(quizId));
+          toast.success('Quiz is now open for participants to join.', {
+            position: 'top-center'
+          });
+        }
+        
         setIsLoading(false);
-      } catch (error) {
-        console.error('Error fetching quiz:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load quiz data. Please try again.",
-          variant: "destructive"
+      } catch (error: any) {
+        console.error('Error initializing quiz:', error);
+        toast.error(error.message || 'Failed to initialize quiz. Please try again.', {
+          position: 'top-center'
         });
         setIsLoading(false);
       }
     };
 
-    fetchQuiz();
-  }, [quizId, toast]);
+    initializeQuiz();
+  }, [quizId, navigate]);
+
+  // WebSocket connection
+  useEffect(() => {
+    if (!quiz?.roomCode) return;
+
+    let isSubscribed = true;
+
+    const connectWebSocket = async () => {
+      try {
+        // Check if already connected
+        if (!websocketService.isConnected()) {
+          await websocketService.connect();
+        }
+
+        await websocketService.subscribeToQuiz(quiz.roomCode, {
+          onParticipantJoined: (participant) => {
+            if (!isSubscribed) return;
+            setParticipants(prev => [...prev, participant]);
+            toast.success(`${participant.nickname} has joined the quiz!`, {
+              position: 'top-center'
+            });
+          },
+          onParticipantLeft: (participant) => {
+            if (!isSubscribed) return;
+            setParticipants(prev => prev.filter(p => p.id !== participant.id));
+            toast.info(`${participant.nickname} has left the quiz.`, {
+              position: 'top-center'
+            });
+          },
+          onQuizStarted: () => {
+            if (!isSubscribed) return;
+            setQuizStarted(true);
+            navigate(`/host-quiz/${quizId}`);
+          }
+        });
+
+        console.log('Successfully subscribed to quiz room:', quiz.roomCode);
+      } catch (error) {
+        console.error('WebSocket connection error:', error);
+        toast.error('Failed to connect to quiz room. Please refresh the page.', {
+          position: 'top-center'
+        });
+      }
+    };
+
+    connectWebSocket();
+
+    // Cleanup function
+    return () => {
+      isSubscribed = false;
+      // Do not unsubscribe from WebSocket when component unmounts
+      // This allows us to maintain the connection during navigation
+    };
+  }, [quiz?.roomCode, quizId, navigate]);
 
   const handleCopyCode = () => {
     if (!quiz?.roomCode) return;
     
     navigator.clipboard.writeText(quiz.roomCode);
-    toast({
-      title: "Room code copied!",
-      description: "Share this code with participants to join the quiz.",
+    toast.success('Room code copied! Share this code with participants to join the quiz.', {
+      position: 'top-center'
     });
   };
 
@@ -55,20 +124,44 @@ const HostWaitingRoom: React.FC = () => {
     if (!quizId) return;
     
     try {
+      // First check if we have participants
+      if (participants.length === 0) {
+        toast.error('Wait for participants to join before starting the quiz.', {
+          position: 'top-center'
+        });
+        return;
+      }
+
+      // Check quiz status before starting
+      const status = await quizSessionService.getQuizStatus(parseInt(quizId));
+      if (status === 'CREATED') {
+        // Try to open the quiz first
+        await quizSessionService.openQuizForParticipants(parseInt(quizId));
+      } else if (status !== 'WAITING') {
+        toast.error(`Quiz must be in WAITING state to start. Current state: ${status}`, {
+          position: 'top-center'
+        });
+        return;
+      }
+
+      // Start the quiz
       await quizSessionService.startQuiz(parseInt(quizId));
       setQuizStarted(true);
-      toast({
-        title: "Quiz Started!",
-        description: "The quiz has begun for all participants.",
-      });
-      // Navigate to host question view
+      
+      // Navigate to host quiz view
       navigate(`/host-quiz/${quizId}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting quiz:', error);
-      toast({
-        title: "Error",
-        description: "Failed to start the quiz. Please try again.",
-        variant: "destructive"
+      
+      // Handle specific error cases
+      let errorMessage = "Failed to start the quiz. Please try again.";
+      if (error.response?.status === 400) {
+        errorMessage = error.response?.data?.message || 
+                      "Quiz cannot be started. Please ensure all participants are ready and the quiz is in the correct state.";
+      }
+      
+      toast.error(errorMessage, {
+        position: 'top-center'
       });
     }
   };
@@ -133,6 +226,7 @@ const HostWaitingRoom: React.FC = () => {
               </div>
             </div>
           </div>
+
           {/* Auto start and Start button */}
           <div className="flex items-center justify-between mb-8">
             <Button 

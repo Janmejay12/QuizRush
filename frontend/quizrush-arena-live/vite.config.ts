@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => ({
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
+  define: {
+    global: 'window', // This adds the global polyfill
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

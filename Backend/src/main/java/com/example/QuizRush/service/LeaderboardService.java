@@ -41,7 +41,6 @@ public class LeaderboardService {
         List<Participant> participants = participantRepository.findByQuizId(quiz.getId());
 
         if (participants == null || participants.isEmpty()) {
-            log.warn("No participants found for quiz room: {}", roomCode);
             return new LeaderboardDTO(List.of(), isFinal);
         }
 
