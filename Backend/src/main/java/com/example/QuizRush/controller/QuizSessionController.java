@@ -94,6 +94,16 @@ public class QuizSessionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
+    @PostMapping("/{quizId}/reset")
+    public ResponseEntity<Void> resetQuiz(@PathVariable Long quizId,@RequestParam Long hostId){
+        try {
+            quizSessionService.removeAllParticipants(quizId,hostId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(null);        }
+    }
+
     @GetMapping("/{quizId}/status")
     public ResponseEntity<Map<String, String>> getQuizStatus(@PathVariable Long quizId) {
         try {

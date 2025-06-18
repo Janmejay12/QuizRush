@@ -87,6 +87,8 @@ const HostWaitingRoom: React.FC = () => {
           },
           onQuizStarted: () => {
             if (!isSubscribed) return;
+            // Store start time when quiz actually starts
+            localStorage.setItem(`quiz_${quizId}_startTime`, new Date().toISOString());
             setQuizStarted(true);
             navigate(`/host-quiz/${quizId}`);
           }
@@ -143,6 +145,9 @@ const HostWaitingRoom: React.FC = () => {
         });
         return;
       }
+
+      // Store start time with quiz-specific key
+      localStorage.setItem(`quiz_${quizId}_startTime`, new Date().toISOString());
 
       // Start the quiz
       await quizSessionService.startQuiz(parseInt(quizId));

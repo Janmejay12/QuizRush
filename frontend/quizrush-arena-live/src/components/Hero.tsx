@@ -1,13 +1,12 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Hero: React.FC = () => {
-  const [isJoinModalOpen, setIsJoinModalOpen] = useState<boolean>(false);
-  const [quizCode, setQuizCode] = useState<string>('');
+  const navigate = useNavigate();
 
   return (
     <section className="relative pt-24 pb-16 md:pt-32 md:pb-24 hero-pattern overflow-hidden">
@@ -29,6 +28,7 @@ const Hero: React.FC = () => {
             <Button 
               size="lg" 
               className="bg-quizrush-blue hover:bg-blue-600 text-white font-medium text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
+              onClick={() => navigate('/login')}
             >
               Host a Quiz
             </Button>
@@ -36,7 +36,7 @@ const Hero: React.FC = () => {
               size="lg"
               variant="outline"
               className="bg-quizrush-green text-white hover:bg-green-600 border-0 font-medium text-lg px-8 py-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
-              onClick={() => setIsJoinModalOpen(true)}
+              onClick={() => navigate('/join-quiz')}
             >
               Join with Code
             </Button>
@@ -71,37 +71,6 @@ const Hero: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Join Quiz Modal */}
-      <Dialog open={isJoinModalOpen} onOpenChange={setIsJoinModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Join a Quiz</DialogTitle>
-            <DialogDescription>
-              Enter the 6-digit code provided by the quiz host.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center space-x-2 py-4">
-            <div className="grid flex-1 gap-2">
-              <Input
-                placeholder="Enter quiz code"
-                value={quizCode}
-                onChange={(e) => setQuizCode(e.target.value)}
-                className="text-lg py-6"
-              />
-            </div>
-          </div>
-          <DialogFooter className="sm:justify-start">
-            <Button 
-              type="button" 
-              className="bg-quizrush-purple hover:bg-quizrush-light-purple"
-              onClick={() => setIsJoinModalOpen(false)}
-            >
-              Join Quiz <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </section>
   );
 };

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import CircularTimer from '@/components/quiz/CircularTimer';
-import { websocketService } from '@/lib/Websocket';
+import { websocketService,LeaderboardData } from '@/lib/Websocket';
 import { QuestionDTO } from '@/lib/Websocket';
 import { quizSessionService } from '@/lib/quiz-session';
 import { answerService } from '@/lib/answer';
@@ -18,9 +18,21 @@ const ParticipantQuestionView: React.FC = () => {
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [rank, setRank] = useState(1);
+  const[totalTimeSpent,setTotalTimeSpent] = useState(0);
   const [totalParticipants, setTotalParticipants] = useState(0);
   const [isAnswerCorrect, setIsAnswerCorrect] = useState<boolean | null>(null);
   const [correctOptionIndices, setCorrectOptionIndices] = useState<number[]>([]);
+  const [quizStats, setQuizStats] = useState(() => {
+    const storedStats = localStorage.getItem('quizStats');
+    if (storedStats) {
+      return JSON.parse(storedStats);
+    }
+    return {
+      correct: 0,
+      incorrect: 0,
+      questions: []
+    };
+  });
 
   // Refs to track navigation and question state
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,13 +48,13 @@ const ParticipantQuestionView: React.FC = () => {
     staleTime: Infinity // Prevent automatic refetching
   });
 
+  // Check if question has multiple correct answers
+  const isMultipleChoice = currentQuestion?.correctOptionIndices && currentQuestion.correctOptionIndices.length > 1;
+
   // Initialize timer when currentQuestion changes - same logic as HostQuizView
   useEffect(() => {
     if (currentQuestion) {
-      console.log('[Timer Init] Setting new question timer:', {
-        duration: currentQuestion.duration,
-        questionId: currentQuestion.id
-      });
+        
       setTimeLeft(currentQuestion.duration);
       setSelectedOptions([]);
       setShowResult(false);
@@ -55,22 +67,20 @@ const ParticipantQuestionView: React.FC = () => {
   // Timer effect - same logic as HostQuizView
   useEffect(() => {
     if (!currentQuestion || timeLeft === null || timeLeft < 0) {
-      console.log('[Timer] Timer stopped:', {
-        hasCurrentQuestion: !!currentQuestion,
-        timeLeft
-      });
       return;
     }
 
     if (timeLeft > 0) {
       const timer = setTimeout(() => {
-        console.log('[Timer] Time remaining:', timeLeft - 1);
         setTimeLeft(prev => prev !== null ? prev - 1 : 0);
       }, 1000);
       return () => clearTimeout(timer);
     } else if (timeLeft === 0) {
-      console.log('[Timer] Time is up! Showing result');
       setShowResult(true);
+      // Auto-submit for multiple choice questions when time runs out
+      if (isMultipleChoice && selectedOptions.length > 0) {
+        handleSubmitAnswer();
+      }
     }
   }, [timeLeft, currentQuestion]);
 
@@ -119,7 +129,8 @@ const ParticipantQuestionView: React.FC = () => {
               text: question.text,
               options: question.options,
               duration: question.duration,
-              points: question.points
+              points: question.points,
+              correctOptions: question.options
             });
             
             // Reset states for new question
@@ -148,19 +159,31 @@ const ParticipantQuestionView: React.FC = () => {
               }
             }, 2000);
           },
-          onLeaderboardUpdate: (leaderboard) => {
+          onLeaderboardUpdate: (leaderboard: LeaderboardData) => {
             if (!isSubscribed) return;
-            console.log('📊 Received leaderboard update');
+
+            // Log raw leaderboard data
+            console.log('🎯 ParticipantQuestionView - Raw Leaderboard Data:', {
+              fullData: leaderboard,
+              entries: leaderboard?.entries,
+              isFinal: leaderboard?.isFinal,
+              entriesCount: leaderboard?.entries?.length
+            });
+            
+            // Store the leaderboard data in localStorage
+            localStorage.setItem('currentLeaderboard', JSON.stringify({
+              entries: leaderboard.entries,
+              isFinal: !!leaderboard.isFinal // Ensure boolean value
+            }));
+            
             const participant = leaderboard.entries.find(
               entry => entry.participantId === parseInt(participantId || '0')
             );
             if (participant) {
-              console.log('📈 Updating participant stats:', { 
-                score: participant.score, 
-                rank: participant.rank 
-              });
+              console.log('👤 Current Participant Data:', participant);
               setScore(participant.score);
               setRank(participant.rank);
+              setTotalTimeSpent(participant.totalTimeSpent);
             }
             setTotalParticipants(leaderboard.entries.length);
           },
@@ -207,29 +230,84 @@ const ParticipantQuestionView: React.FC = () => {
     };
   }, [quizId, participantId, navigate, queryClient]);
 
-  const handleOptionSelect = async (optionIndex: number, event: React.MouseEvent) => {
-    if (!showResult && !selectedOptions.length && currentQuestion) {
-      setSelectedOptions([optionIndex]);
-      setShowResult(true);
-      
-      try {
-        const result = await answerService.submitAnswer(parseInt(quizId || '0'), {
-          participantId: parseInt(participantId || '0'),
-          questionId: currentQuestion.id,
-          selectedOptionIndices: [optionIndex]
-        });
+  const handleAnswerResult = (result: any, currentQuestion: any) => {
+    setIsAnswerCorrect(result.correct);
+    
+    // Update quiz stats
+    setQuizStats(prev => {
+      const updatedStats = {
+        correct: prev.correct + (result.correct ? 1 : 0),
+        incorrect: prev.incorrect + (result.correct ? 0 : 1),
+        questions: [...prev.questions, {
+          id: currentQuestion.id.toString(),
+          text: currentQuestion.text,
+          isCorrect: result.correct
+        }]
+      };
 
-        setIsAnswerCorrect(result.correct);
-        // Store correct option indices for showing correct answers
-        if (result.correctOptionIndices) {
-          setCorrectOptionIndices(result.correctOptionIndices);
+      // Store in localStorage for summary page
+      localStorage.setItem('quizStats', JSON.stringify(updatedStats));
+      return updatedStats;
+    });
+
+    // Store correct option indices for showing correct answers
+    if (result.correctOptionIndices) {
+      setCorrectOptionIndices(result.correctOptionIndices);
+    }
+  };
+
+  const handleOptionSelect = async (optionIndex: number, event: React.MouseEvent) => {
+    if (showResult) return;
+
+    if (isMultipleChoice) {
+      setSelectedOptions(prev => {
+        if (prev.includes(optionIndex)) {
+          return prev.filter(index => index !== optionIndex);
+        } else {
+          return [...prev, optionIndex];
         }
-      } catch (error) {
-        console.error('Error submitting answer:', error);
-        toast.error('Failed to submit answer', {
-          position: 'top-center'
-        });
+      });
+    } else {
+      if (!selectedOptions.length && currentQuestion) {
+        setSelectedOptions([optionIndex]);
+        setShowResult(true);
+        
+        try {
+          const result = await answerService.submitAnswer(parseInt(quizId || '0'), {
+            participantId: parseInt(participantId || '0'),
+            questionId: currentQuestion.id,
+            selectedOptionIndices: [optionIndex]
+          });
+
+          handleAnswerResult(result, currentQuestion);
+        } catch (error) {
+          console.error('Error submitting answer:', error);
+          toast.error('Failed to submit answer', {
+            position: 'top-center'
+          });
+        }
       }
+    }
+  };
+
+  const handleSubmitAnswer = async () => {
+    if (!currentQuestion || selectedOptions.length === 0) return;
+
+    setShowResult(true);
+    
+    try {
+      const result = await answerService.submitAnswer(parseInt(quizId || '0'), {
+        participantId: parseInt(participantId || '0'),
+        questionId: currentQuestion.id,
+        selectedOptionIndices: selectedOptions
+      });
+
+      handleAnswerResult(result, currentQuestion);
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      toast.error('Failed to submit answer', {
+        position: 'top-center'
+      });
     }
   };
 
@@ -240,11 +318,16 @@ const ParticipantQuestionView: React.FC = () => {
 
     // If this is the selected option
     if (selectedOptions.includes(optionIndex)) {
-      return isAnswerCorrect ? 'bg-green-500' : 'bg-red-500';
+      // For selected options, show green if it's correct, red if it's wrong
+      if (correctOptionIndices.includes(optionIndex)) {
+        return 'bg-green-500';
+      } else {
+        return 'bg-red-500';
+      }
     }
     
-    // If this is a correct option and user selected wrong answer
-    if (!isAnswerCorrect && correctOptionIndices.includes(optionIndex)) {
+    // If this is a correct option that was not selected
+    if (correctOptionIndices.includes(optionIndex)) {
       return 'bg-green-500';
     }
     
@@ -264,8 +347,6 @@ const ParticipantQuestionView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900">
-      
-
       {/* Main content */}
       <div className="flex flex-col items-center justify-center px-6 py-12">
         {/* Timer */}
@@ -294,10 +375,43 @@ const ParticipantQuestionView: React.FC = () => {
                 ${!showResult ? 'hover:scale-105' : ''}
               `}
             >
+              {/* Checkbox for multiple choice */}
+              {isMultipleChoice && !showResult && (
+                <div className="absolute top-2 right-2">
+                  <div className={`w-5 h-5 rounded border-2 border-white flex items-center justify-center ${
+                    selectedOptions.includes(index) ? 'bg-white' : 'bg-transparent'
+                  }`}>
+                    {selectedOptions.includes(index) && (
+                      <svg className="w-3 h-3 text-gray-800" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="relative z-10">{option}</div>
             </div>
           ))}
         </div>
+
+        {/* Submit Button for Multiple Choice */}
+        {isMultipleChoice && !showResult && (
+          <div className="mt-8 flex justify-end max-w-4xl w-full">
+            <button
+              onClick={handleSubmitAnswer}
+              disabled={selectedOptions.length === 0}
+              className={`
+                px-8 py-3 rounded-xl font-semibold text-lg transition-all duration-300
+                ${selectedOptions.length > 0 
+                  ? 'bg-white text-purple-900 hover:bg-gray-100 hover:scale-105' 
+                  : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }
+              `}
+            >
+              Submit Answer
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

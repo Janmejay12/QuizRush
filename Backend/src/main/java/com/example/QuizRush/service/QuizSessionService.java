@@ -97,8 +97,26 @@ public class QuizSessionService {
         webSocketService.broadcastLeaderboardUpdate(quiz.getRoomCode(), finalLeaderboard);
 
         quizTimerService.cleanupRoom(quiz.getRoomCode());
-
         return quizRepository.save(quiz);
+    }
+    @Transactional
+    public void removeAllParticipants(Long quizId, Long hostId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new CustomException("Quiz not found"));
+
+        if(!quiz.getHost().getId().equals(hostId))
+            throw new CustomException("Unauthorized to end this quiz");
+
+        List<Participant> participants = participantRepository.findByQuiz(quiz);
+        for (Participant participant : participants) {
+            quiz.removeParticipant(participant);
+        }
+        // Reset quiz state for reuse
+        quiz.setCurrentQuestionIndex(0);
+        quiz.setStatus(QuizStatus.CREATED);
+
+        participantRepository.deleteAll(participants);
+        quizRepository.save(quiz);
     }
 
 

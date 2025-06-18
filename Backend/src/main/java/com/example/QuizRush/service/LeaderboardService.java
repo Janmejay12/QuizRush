@@ -59,6 +59,9 @@ public class LeaderboardService {
                 rank++;
             }
         }
+        if(quiz.getCurrentQuestionIndex() == quiz.getQuestions().size() - 1){
+            isFinal = true;
+        }
 
         return new LeaderboardDTO(entries, isFinal);
     }

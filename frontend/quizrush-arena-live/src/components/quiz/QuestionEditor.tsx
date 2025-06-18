@@ -9,6 +9,7 @@ import { Check, Plus, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Question } from '@/lib/types';
+import { toast } from 'sonner';
 
 interface QuestionEditorProps {
   onSave: (question: Question) => void;
@@ -79,20 +80,33 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
   };
 
   const handleRemoveOption = (index: number) => {
-    if (question.options.length > 2) {
-      const updatedOptions = question.options.filter((_, i) => i !== index);
-      
-      // Update correctOptionIndices to account for removed option
-      const updatedIndices = question.correctOptionIndices
-        .filter(i => i !== index)
-        .map(i => i > index ? i - 1 : i);
-      
-      setQuestion({
-        ...question,
-        options: updatedOptions,
-        correctOptionIndices: updatedIndices
-      });
+    // Check if removing this option would violate the minimum options rule
+    const isCorrectOption = question.correctOptionIndices.includes(index);
+    const remainingCorrectOptions = isCorrectOption ? 
+      question.correctOptionIndices.length - 1 : 
+      question.correctOptionIndices.length;
+    
+    // For multiple correct answers, need at least correct + 1 option
+    const minRequiredOptions = question.correctOptionIndices.length > 1 ? 
+      remainingCorrectOptions + 1 : 2;
+
+    if (question.options.length <= minRequiredOptions) {
+      toast.error("Cannot remove option. Need at least one correct option and one incorrect option.");
+      return;
     }
+
+    const updatedOptions = question.options.filter((_, i) => i !== index);
+    
+    // Update correctOptionIndices to account for removed option
+    const updatedIndices = question.correctOptionIndices
+      .filter(i => i !== index)
+      .map(i => i > index ? i - 1 : i);
+    
+    setQuestion({
+      ...question,
+      options: updatedOptions,
+      correctOptionIndices: updatedIndices
+    });
   };
 
   const handleAnswerTypeChange = (multipleCorrect: boolean) => {
@@ -122,19 +136,19 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
   const handleSave = () => {
     // Validate before saving
     if (!question.text.trim()) {
-      alert("Please enter a question");
+      toast.error("Please enter a question");
       return;
     }
     
     // Check if at least one option is marked correct
     if (question.correctOptionIndices.length === 0) {
-      alert("Please mark at least one option as correct");
+      toast.error("Please mark at least one option as correct");
       return;
     }
     
     // Check if all options have text
     if (question.options.some(text => !text.trim())) {
-      alert("Please fill in text for all options");
+      toast.error("Please fill in text for all options");
       return;
     }
     
@@ -207,7 +221,6 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
                 onClick={() => handleRemoveOption(index)}
                 type="button"
                 aria-label="Delete option"
-                disabled={question.options.length <= 2}
               >
                 <Trash2 className="h-4 w-4 text-white" />
               </button>
@@ -234,7 +247,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
                     onCheckedChange={(checked) => {
                       handleOptionCorrectChange(index, !!checked);
                     }}
-                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-purple-800"
+                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-purple-800 cursor-pointer"
                   />
                 </div>
               )}
@@ -249,49 +262,23 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ onSave, defaultQuestion
         })}
       </div>
       
-      {question.options.length < 6 && (
-        <div className="flex justify-center mb-6">
-          <Button 
-            type="button" 
-            variant="outline" 
-            onClick={handleAddOption}
-            className="flex items-center border-2 border-purple-800 text-purple-800"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add Option
-          </Button>
-        </div>
-      )}
-      
-      <div className="flex justify-between items-center mb-6 bg-slate-100 p-3 rounded-lg">
-        <div className="flex space-x-4">
-          <div className="flex items-center">
-            <input 
-              type="radio" 
-              id="singleAnswer" 
-              checked={!isMultipleCorrect} 
-              onChange={() => handleAnswerTypeChange(false)}
-              className="mr-2"
-            />
-            <label htmlFor="singleAnswer" className="font-medium">Single correct answer</label>
-          </div>
-          <div className="flex items-center">
-            <input 
-              type="radio" 
-              id="multipleAnswers" 
-              checked={isMultipleCorrect} 
-              onChange={() => handleAnswerTypeChange(true)}
-              className="mr-2"
-            />
-            <label htmlFor="multipleAnswers" className="font-medium">Multiple correct answers</label>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex justify-end">
-        <Button 
+      <div className="flex justify-between items-center">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAddOption}
+          disabled={question.options.length >= 6}
+          className="flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          Add Option
+        </Button>
+        
+        <Button
           onClick={handleSave}
-          className="bg-purple-800 hover:bg-purple-900 px-6"
           disabled={isLoading}
+          className="bg-purple-600 hover:bg-purple-700 text-white px-8"
         >
           {isLoading ? 'Saving...' : 'Save Question'}
         </Button>

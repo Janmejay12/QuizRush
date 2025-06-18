@@ -10,8 +10,7 @@ import { authService } from '@/lib/auth';
 import { quizService } from '@/lib/quiz';
 import { useQuery } from '@tanstack/react-query';
 import { Quiz } from '@/lib/types';
-
-
+import AdminNavbar from '@/components/AdminNavbar';
 
 interface QuizCardProps {
   quiz: Quiz;
@@ -117,8 +116,8 @@ const Admin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="container pt-24 pb-12 px-4">
+      <AdminNavbar />
+      <div className="container mx-auto px-4 pt-24 pb-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-purple-900">Quiz Dashboard</h1>

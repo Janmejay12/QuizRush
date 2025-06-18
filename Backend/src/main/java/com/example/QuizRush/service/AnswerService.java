@@ -124,7 +124,6 @@ public class AnswerService {
                 message,
                 correctOptionIndices
         );
-
         return answerResult;
     }
 }

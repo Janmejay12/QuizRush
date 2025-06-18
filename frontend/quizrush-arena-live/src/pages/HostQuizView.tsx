@@ -118,12 +118,22 @@ const HostQuizView: React.FC = () => {
 
   // WebSocket connection
   useEffect(() => {
-    if (!roomCode || !quizId) return;
+    if (!quiz?.roomCode) return;
+
+    let isSubscribed = true;
 
     const connectWebSocket = async () => {
       try {
-        await websocketService.connect();
-        await websocketService.subscribeToQuiz(roomCode, {
+        if (!websocketService.isConnected()) {
+          await websocketService.connect();
+        }
+
+        await websocketService.subscribeToQuiz(quiz.roomCode, {
+          onQuizStarted: () => {
+            if (!isSubscribed) return;
+            // Store start time when quiz actually starts
+            localStorage.setItem(`quiz_${quizId}_startTime`, new Date().toISOString());
+          },
           onQuizEnded: () => {
             setIsQuizEnded(true);
             navigate(`/host-summary/${quizId}`);
@@ -142,11 +152,9 @@ const HostQuizView: React.FC = () => {
     connectWebSocket();
 
     return () => {
-      if (roomCode) {
-        websocketService.unsubscribeFromQuiz(roomCode);
-      }
+      isSubscribed = false;
     };
-  }, [roomCode, quizId, navigate, queryClient, toast]);
+  }, [quiz?.roomCode, quizId, navigate, queryClient, toast]);
 
   const handleNextQuestion = async () => {
     if (!canProceed) {
