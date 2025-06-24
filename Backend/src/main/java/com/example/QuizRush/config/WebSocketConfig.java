@@ -61,7 +61,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     @Bean
-    public WebMvcConfigurer corsConfigurer() {
+    public WebMvcConfigurer websocketCorsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
@@ -73,26 +73,3 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         };
     }
 }
-
-
-//send connection request on this url : ws://localhost:8080/quiz-ws/websocket
-/*Headers : Upgrade : websocket
-            Connection : Upgrade
-            */
-// STOMP CONNECT frame :
-/* CONNECT
-accept-version:1.1,1.0
-host:localhost:8080
-heart-beat:10000,10000
-
-        \u0000
-
-*/
-
-/*
-SUBSCRIBE
-id:sub-0
-destination:/topic/quiz/453152
-
-\u0000
- */
