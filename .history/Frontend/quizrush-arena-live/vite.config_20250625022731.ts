@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     port: 8081,
     proxy: {
       '/api': {
-        target: 'http://quizrush-production.up.railway.app',
+        target: 'quizrush-production.up.railway.app',
         changeOrigin: true,
         secure: false,
       },
