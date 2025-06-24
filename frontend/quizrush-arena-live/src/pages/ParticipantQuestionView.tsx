@@ -269,23 +269,23 @@ const ParticipantQuestionView: React.FC = () => {
       });
     } else {
       if (!selectedOptions.length && currentQuestion) {
-        setSelectedOptions([optionIndex]);
-        setShowResult(true);
-        
-        try {
-          const result = await answerService.submitAnswer(parseInt(quizId || '0'), {
-            participantId: parseInt(participantId || '0'),
-            questionId: currentQuestion.id,
-            selectedOptionIndices: [optionIndex]
-          });
+      setSelectedOptions([optionIndex]);
+      setShowResult(true);
+      
+      try {
+        const result = await answerService.submitAnswer(parseInt(quizId || '0'), {
+          participantId: parseInt(participantId || '0'),
+          questionId: currentQuestion.id,
+          selectedOptionIndices: [optionIndex]
+        });
 
           handleAnswerResult(result, currentQuestion);
-        } catch (error) {
-          console.error('Error submitting answer:', error);
-          toast.error('Failed to submit answer', {
-            position: 'top-center'
-          });
-        }
+      } catch (error) {
+        console.error('Error submitting answer:', error);
+        toast.error('Failed to submit answer', {
+          position: 'top-center'
+        });
+      }
       }
     }
   };

@@ -13,4 +13,5 @@ import java.util.List;
 public class LeaderboardDTO {
     private List<LeaderBoardEntryDTO> entries;
     private boolean isFinal;  // true when quiz is ended
+
 }

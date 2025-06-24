@@ -125,7 +125,7 @@ const HostQuizView: React.FC = () => {
     const connectWebSocket = async () => {
       try {
         if (!websocketService.isConnected()) {
-          await websocketService.connect();
+        await websocketService.connect();
         }
 
         await websocketService.subscribeToQuiz(quiz.roomCode, {
