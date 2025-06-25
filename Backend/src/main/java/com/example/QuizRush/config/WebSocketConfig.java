@@ -1,5 +1,8 @@
 package com.example.QuizRush.config;
 
+import jakarta.websocket.server.ServerContainer;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -15,9 +18,12 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 @EnableWebSocketMessageBroker
+@ConditionalOnWebApplication
+
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     
     @Bean
+    @ConditionalOnBean(ServerContainer.class)
     public ServletServerContainerFactoryBean createWebSocketContainer() {
         ServletServerContainerFactoryBean container = new ServletServerContainerFactoryBean();
         container.setMaxTextMessageBufferSize(8192);
