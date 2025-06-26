@@ -13,7 +13,7 @@ public class CORSConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/**") // Allow all routes
-                        .allowedOrigins("https://quiz-rush-5ejspy61w-janmejay-rajs-projects.vercel.app") // Allow all origins — or replace with your Vercel frontend domain
+                        .allowedOrigins("https://quiz-rush-one.vercel.app") // Allow all origins — or replace with your Vercel frontend domain
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*");
             }
